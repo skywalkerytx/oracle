@@ -1,5 +1,6 @@
 import mysql.connector as maria
 import os
+import re
 
 from multiprocessing.pool import Pool
 
@@ -85,12 +86,97 @@ def CreateTable():
         pass  # Have to,otherwise won't work anyway
 
     conn.commit()  # autocommit = False by default
+    cur.execute('select * from Raw limit 1')
+
 
 def AddStock(stock):
-    pass
+    if stock[0]!='s':
+        return
+    pconn = maria.connect(user='nova', database='nova')
+    pcur = pconn.cursor()
+    if stock[1] == 'h':
+        stock = 'data/history/overview-data-sh/'+stock
+    else:
+        stock = 'data/history/overview-data-sz/'+stock
+    FILE = open(stock,'r',encoding='gbk')
+    #ensure no ridiculous data get into database
+    lines = filter(lambda line:re.match('''^[sh0-9]+,[^,]*,[\-0-9]{10,10},[^,]*,[^,]*,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+$''',line)!=None,FILE.readlines())
+    #for line in map(lambda x:x.split(','),lines):
+    pcur.executemany('''
+    INSERT INTO Raw(
+    code,
+    name,
+    date,
+    industry,
+    concept,
+    area,
+    op,
+    mx,
+    mn,
+    clse,
+    aft,
+    bfe,
+    amp,
+    vol,
+    market,
+    market_exchange,
+    on_board,
+    total,
+    ZT,
+    DT,
+    shiyinlv,
+    shixiaolv,
+    shixianlv,
+    shijinglv,
+    ma5,
+    ma10,
+    ma20,
+    ma30,
+    ma60,
+    macross,
+    macddif,
+    macddea,
+    macdmacd,
+    macdcross,
+    k,
+    d,
+    j,
+    kdjcross,
+    berlinmid,
+    berlinup,
+    berlindown,
+    psy,
+    psyma,
+    rsi1,
+    rsi2,
+    rsi3,
+    zhenfu,
+    volratio)
+    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    ''',list(map(lambda x:x.split(','),lines)))
+
+    pconn.commit()
+    pconn.close()
+    FILE.close()
+
+
 
 def AddIndex(index):
-    pass
+    if index[0] != 's':
+        return
+    pconn = maria.connect(user='nova',database = 'nova')
+    pcur = pconn.cursor()
+    index = 'data/history/overview-data-sh/index/'+index
+    FILE = open(index,'r',encoding='gbk')
+    lines = filter(lambda line: re.match('''^[sh0-9]+,[\-0-9]{10,10},[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,$''',line)!=None,FILE.readlines())
+    pcur.executemany('''
+    INSERT INTO RawIndex(
+    index_code,index_date,open,close,low,high,volume,money,delta) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    ''',list(map(lambda x:x.split(','),lines)))
+
+    pconn.commit()
+    pconn.close()
+    FILE.close()
 
 def main():
     CreateTable()
