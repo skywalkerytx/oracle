@@ -161,7 +161,7 @@ def AddIndex(index):
     pcur = pconn.cursor()
     index = 'data/history/overview-data-sh/index/'+index
     FILE = open(index,'r',encoding='gbk')
-    lines = filter(lambda line: re.match('''^[sh0-9]+,[\-0-9]{10,10},[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,$''',line)!=None,FILE.readlines())
+    lines = filter(lambda line: re.match('''^[shz0-9]+,[\-0-9]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+$''',line)!=None,FILE.readlines())
     pcur.executemany('''
     INSERT INTO RawIndex(
     index_code,index_date,open,close,low,high,volume,money,delta) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)

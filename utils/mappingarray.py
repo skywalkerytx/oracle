@@ -51,20 +51,25 @@ def mappingarray(args):
     conn = ProcessSqlPool.get_connection()
     cur = conn.cursor()
     cur.execute(query, (code, date))
-    for line in cur:
-        if cur.rowcount == -1:
-            return
+    dic = dict()
+    line = cur.fetchone()
+    if line != None:
         line = list(map(lambda x:x.decode('utf8').split('；'),line))
-        array = reduce(lambda x,y:np.append(x,y),map(lambda iter:catmapping(line[iter],cats[iter]),range(0,len(cats))))
+    else:
+        return dic
+    array = reduce(lambda x,y:np.append(x,y),map(lambda iter:catmapping(line[iter],cats[iter]),range(0,len(cats))))
+    dic[(code,date)] = array
     conn.close()
+    return dic
 
 
 def GenC(code):
     tp = ThreadPool(8)
     args = tp.map(lambda date:(code,date),dates)
-    tp.map(mappingarray,args)
+    dicts = tp.map(mappingarray,args)
     #list(map(mappingarray,args))
     tp.terminate()
+    return reduce(lambda x,y:{**x,**y},dicts)
 
 def ProcessInitializer():
     global ProcessSqlPool
@@ -86,7 +91,10 @@ def main():
     dates = list(map(lambda x: x[0].decode('utf8'), cur))
     conn.close()
     pp = Pool(8,initializer=ProcessInitializer)
-    pp.map(GenC, codes)
+    dicts = pp.map(GenC, codes)
+    dic = reduce(lambda x, y: {**x, **y}, dicts)
+    del dicts
+    return 0
 
 if __name__ == '__main__':
     exit(main())
