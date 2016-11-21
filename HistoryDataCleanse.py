@@ -4,12 +4,6 @@ import re
 
 from multiprocessing.pool import Pool
 
-stock_header = '股票代码,股票名称,交易日期,新浪行业,新浪概念,新浪地域,开盘价,最高价,最低价,收盘价,后复权价,前复权价,涨跌幅,成交量,成交额,换手率,流通市值,总市值,是否涨停,是否跌停,市盈率TTM,市销率TTM,市现率TTM,市净率,MA_5,MA_10,MA_20,MA_30,MA_60,MA金叉死叉,MACD_DIF,MACD_DEA,MACD_MACD,MACD_金叉死叉,KDJ_K,KDJ_D,KDJ_J,KDJ_金叉死叉,布林线中轨,布林线上轨,布林线下轨,psy,psyma,rsi1,rsi2,rsi3,振幅,量比\n'
-new_stock_header = "code,name,date,industry,concept,area,op,mx,mn,clse,aft,bfe,amp,vol,market,market_exchange,on_board,total,ZT,DT,shiyinlv,shixiaolv,shixianlv,shijinglv,ma5,ma10,ma20,ma30,ma60,macross,macddif,macddea,macdmacd,macdcross,k,d,j,kdjcross,berlinmid,berlinup,berlindown,psy,psyma,rsi1,rsi2,rsi3,zhenfu,volratio"
-
-index_header = 'index_code,date,open,close,low,high,volume,money,change\n'
-new_index_header = "index_code,index_date,open,close,low,high,volume,money,delta"
-
 CreateTableSQL = '''
 CREATE OR REPLACE TABLE Raw (
 code char(9) NOT NULL,
@@ -101,7 +95,6 @@ def AddStock(stock):
     FILE = open(stock,'r',encoding='gbk')
     #ensure no ridiculous data get into database
     lines = filter(lambda line:re.match('''^[sh0-9]+,[^,]*,[\-0-9]{10,10},[^,]*,[^,]*,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+$''',line)!=None,FILE.readlines())
-    #for line in map(lambda x:x.split(','),lines):
     pcur.executemany('''
     INSERT INTO Raw(
     code,

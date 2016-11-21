@@ -1,5 +1,6 @@
 import mysql.connector as maria
 from multiprocessing.pool import Pool
+from utils.globalvar import cats
 
 TableSQL = '''
 CREATE OR REPLACE TABLE Mapping(
@@ -10,7 +11,6 @@ PRIMARY KEY(cat,str)
 );
 '''
 
-cats = "industry,concept,area,macross,macdcross,kdjcross".split(',') #meow
 
 
 def CatMapping(cat):
@@ -18,9 +18,16 @@ def CatMapping(cat):
     pconn = maria.connect(user='nova', database='nova')
     pcur = pconn.cursor()
     pcur.execute('select distinct %s from Raw'%cat)
-    for line in pcur:
-        print(line[0].decode('UTF-8')) #never needed in psql
-
+    lines = list(map(lambda line:line[0].decode('UTF-8').split('；'),pcur))
+    mappings = dict()
+    for line in lines:
+        for word in line:
+            if word not in mappings:
+                mappings[word] = len(mappings)
+    for word in mappings.keys():
+        pcur.execute('INSERT INTO Mapping(str,cat,id) VALUES(%s,%s,%s)',(word,cat,mappings[word]))
+    pconn.commit()
+    pconn.close()
 
 
 def main():
@@ -29,9 +36,7 @@ def main():
     cur.execute(TableSQL)
     conn.commit()
     tp = Pool(6)
-    #tp.map(CatMapping,cats)
-    list(map(CatMapping,cats))
-
+    tp.map(CatMapping, cats)
     return 0
 
 if __name__ == '__main__':
