@@ -94,7 +94,7 @@ def AddStock(stock):
         stock = 'data/history/overview-data-sz/'+stock
     FILE = open(stock,'r',encoding='gbk')
     #ensure no ridiculous data get into database
-    lines = filter(lambda line:re.match('''^[sh0-9]+,[^,]*,[\-0-9]{10,10},[^,]*,[^,]*,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[^,]*,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+,[.0-9]+$''',line)!=None,FILE.readlines())
+    lines = filter(lambda line:re.match('''^[shz0-9]+,[^,]*,[\-0-9]{10,10},[^,]*,[^,]*,[^,]*,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[^,]*,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[^,]*,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[^,]*,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+$''',line)!=None,FILE.readlines())
     pcur.executemany('''
     INSERT INTO Raw(
     code,
@@ -161,7 +161,7 @@ def AddIndex(index):
     pcur = pconn.cursor()
     index = 'data/history/overview-data-sh/index/'+index
     FILE = open(index,'r',encoding='gbk')
-    lines = filter(lambda line: re.match('''^[shz0-9]+,[\-0-9]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+,[0-9.]+$''',line)!=None,FILE.readlines())
+    lines = filter(lambda line: re.match('''^[shz0-9]+,[\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+,[.\-0-9]+$''',line)!=None,FILE.readlines())
     pcur.executemany('''
     INSERT INTO RawIndex(
     index_code,index_date,open,close,low,high,volume,money,delta) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
