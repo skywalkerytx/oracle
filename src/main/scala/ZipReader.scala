@@ -1,4 +1,4 @@
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.util.Scanner
 import java.util.zip.ZipFile
 
@@ -15,6 +15,13 @@ class ZipReader {
     scala.io.Source.fromInputStream(stream,"gbk").getLines().filter(s=> re findFirstIn s isDefined ).toArray
   }
 
+  def ReadAll() = {
+    val ziplist = utils.recursiveListFiles(new File("data/holo"))
+    ziplist foreach {
+      file =>
+
+    }
+  }
 
   def reader(filename:String) = {
     val zip = new ZipFile(filename)
