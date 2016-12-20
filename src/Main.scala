@@ -6,6 +6,8 @@ import java.time.format.DateTimeFormatter
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 
+import scala.util.matching.Regex.MatchIterator
+
 /**
   * Created by nova on 16-12-19.
   */
@@ -29,5 +31,8 @@ object Main {
   def main(args: Array[String]): Unit = {
     val mail = new EmailReader()
     //mail.Messages()
+    val zip = new ZipReader()
+
+
   }
 }
