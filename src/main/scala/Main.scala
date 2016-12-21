@@ -1,12 +1,7 @@
 import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
-import java.nio.file.Paths
-import java.text.SimpleDateFormat
-import java.time.format.DateTimeFormatter
 
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
 
-import scala.util.matching.Regex.MatchIterator
+
 
 /**
   * Created by nova on 16-12-19.
@@ -28,11 +23,22 @@ object Main {
     obj
   }
 
+  def playground() = {
+    import doobie.imports._
+    import scalaz._, Scalaz._
+    import scalaz.concurrent.Task
+    import scalaz.stream.Process
+    val xa = DriverManagerTransactor[Task] ("org.postgresql.Driver","jdbc:postgresql:nova","nova","emeth")
+    import xa.yolo._
+
+  }
+
   def main(args: Array[String]): Unit = {
     val mail = new EmailReader()
     //mail.Messages()
+    playground()
     val zip = new ZipReader()
-
-
+    zip.clear()
+    zip.ReadAll()
   }
 }

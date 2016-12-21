@@ -68,3 +68,15 @@ cat varchar(12),
 id int,
 PRIMARY KEY(cat,str)
 );
+
+CREATE TABLE IF NOT EXISTS RawConcept(
+concept varchar(20),
+date varchar(11),
+amount int,
+uppercent float,
+downpercent float,
+drawpercent float,
+amp float,
+wamp float,
+PRIMARY KEY(concept,date)
+)
