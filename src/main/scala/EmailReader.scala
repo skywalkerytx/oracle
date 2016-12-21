@@ -14,7 +14,7 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
   val ImapServer = "imap.qq.com"
   val SmtpServer = "smtp.qq.com"
 
-  def Messages() = {
+  def GetAttachments() = {
     val prop = Prop()
     val store = prop._1
     val inbox = prop._2
@@ -28,8 +28,21 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
       message =>
         val date = trim(message.getSubject)
         (date, message.getMessageNumber)
-    }.filter(message=>message._1.isDefined && !java.nio.file.Files.exists(Paths.get("data/holo/overview-push-"+message._1.get+".zip")))
-    messages.foreach(message=>AttachmentByNumber(message._2,store,inbox))
+    }.filter(message => message._1.isDefined && !java.nio.file.Files.exists(Paths.get("data/holo/overview-push-" + message._1.get + ".zip")))
+    messages.foreach {
+      message =>
+        var flag = true
+        while (flag) {
+          try {
+            AttachmentByNumber(message._2, store, inbox)
+            flag = false
+          }
+          catch {
+            case ex: FolderClosedException => AttachmentByNumber(message._2, store, inbox)
+          }
+
+        }
+    }
     inbox.close(true)
     store.close
     messages
@@ -41,6 +54,40 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
       case pattern(from, date, detail) => Some(date)
       case _ => Option(null)
     }
+  }
+
+  def AttachmentByNumber(id: Int, s: Store = null, i: Folder = null): Boolean = {
+
+    val prop: (Store, Folder) = if (s == null) Prop() else null
+    val store = if (s == null) prop._1 else s
+    val inbox = if (i == null) prop._2 else i
+    val message = inbox.getMessage(id)
+    val ContentType = message.getContentType
+    val Content = message.getContent.asInstanceOf[Multipart]
+    val attachment = (0 until Content.getCount).map(
+      x => Content.getBodyPart(x)
+    ).filterNot(part => part.getContentType.contains("TEXT")).head
+    val IS = attachment.getInputStream
+    val f = new File("data/holo/" + attachment.getFileName)
+    val FOS = new FileOutputStream(f)
+    val buffer = new Array[Byte](4096)
+    var read = 0
+    try {
+      read = IS.read(buffer)
+      while (read != -1) {
+        FOS.write(buffer, 0, read)
+        read = IS.read(buffer)
+      }
+      read = IS.read(buffer)
+    }
+    catch {
+      case ex: Throwable => println(ex.getMessage)
+    }
+    finally {
+      FOS.close
+      IS.close
+    }
+    return true
   }
 
   def Length() = {
@@ -61,38 +108,6 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
     (store, inbox)
   }
 
-  def AttachmentByNumber(id: Int,s:Store = null,i:Folder = null):Boolean = {
-
-    val prop: (Store, Folder) = if (s == null) Prop() else null
-    val store = if (s == null) prop._1 else s
-    val inbox = if (i == null) prop._2 else i
-    val message = inbox.getMessage(id)
-    val ContentType = message.getContentType
-    val Content = message.getContent.asInstanceOf[Multipart]
-    val attachment = (0 until Content.getCount).map(
-      x => Content.getBodyPart(x)
-    ).filterNot(part => part.getContentType.contains("TEXT")).head
-    val IS = attachment.getInputStream
-    val f = new File("data/holo/" + attachment.getFileName)
-    val FOS = new FileOutputStream(f)
-    val buffer = new Array[Byte](4096)
-    var read = 0
-    try {
-      while ((read = IS.read(buffer)) != -1) {
-        FOS.write(buffer, 0, read)
-      }
-    }
-      catch {
-        case _ =>
-      }
-    finally
-    {
-      FOS.close
-      IS.close
-    }
-    return true
-  }
-
   def playground() = {
     val subjectstr = "市场全息数据推送"
     val prop = Prop()
@@ -100,10 +115,10 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
     val inbox = prop._2
     val subject = new SubjectTerm(subjectstr)
     val Size = new SizeTerm(ComparisonTerm.GE, 1024)
-    val Final = new AndTerm(subject,Size)
-    val types = inbox.search(Final).map(_.getContent.asInstanceOf[Multipart]).flatMap{
+    val Final = new AndTerm(subject, Size)
+    val types = inbox.search(Final).map(_.getContent.asInstanceOf[Multipart]).flatMap {
       parts =>
-        (0 until parts.getCount).map(x=>parts.getBodyPart(x)).map(_.getContentType.split(';').head)
+        (0 until parts.getCount).map(x => parts.getBodyPart(x)).map(_.getContentType.split(';').head)
     }
     inbox.close(true)
     store.close()
