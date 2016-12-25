@@ -21,5 +21,5 @@ libraryDependencies += "ml.dmlc.mxnet" % "libmxnet-scala-linux-x86_64-gpu" % "0.
 
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-mllib_2.11
-libraryDependencies += "org.apache.spark" % "spark-mllib_2.11" % "2.1.0"
+//libraryDependencies += "org.apache.spark" % "spark-mllib_2.11" % "2.1.0"
 
