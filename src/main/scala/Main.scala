@@ -8,6 +8,21 @@ import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutp
 
 object Main {
 
+  def playground() = {
+    import doobie.imports._
+
+    import scalaz._
+    import Scalaz._
+    import scalaz.concurrent.Task
+
+    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver","jdbc:postgresql:nova","nova","emeth")
+
+    import xa.yolo._
+
+    sql"""select column_name, data_type
+from INFORMATION_SCHEMA.COLUMNS where table_name = 'raw' and data_type = 'text' ;""".query[(String,String)].list.transact(xa).run.take(50000000).foreach(println)
+  }
+
   def DailyUpdate() = {
     val mail = new EmailReader()
     mail.GetAttachments
@@ -16,6 +31,9 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-
+    //DailyUpdate()
+    val vec = new Vectorlize()
+    vec.GenMapping()
+    //playground()
   }
 }
