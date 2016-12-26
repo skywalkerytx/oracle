@@ -38,21 +38,18 @@ object Main {
 
   }
 
+  def main(args: Array[String]): Unit = {
+    DailyUpdate()
+    //val vec = new Vectorlize()
+
+  }
+
   def DailyUpdate() = {
     val mail = new EmailReader()
     mail.GetAttachments
     val zip = new ZipReader()
-    zip.ReadAll
-  }
-
-  def main(args: Array[String]): Unit = {
-    //DailyUpdate()
     val vec = new Vectorlize()
-    //vec.GenMapping()
-    //vec.GenVector()
-    //val res = vec.GenIndex()
-    //playground()
-    //val res = vec.GetMapping()
-
+    zip.ReadAll
+    vec.GenMapping()
   }
 }

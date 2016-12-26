@@ -83,7 +83,7 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def GenIndex(): Map[String, Array[Float]] = {
+  def GetIndex(): Map[String, Array[Float]] = {
     dates.par.map {
       date =>
         val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
@@ -98,7 +98,7 @@ class Vectorlize {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
 
-  def GetMapping()= {
+  def GetMapping() = {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
     val mappings: Map[(String, String), Int] = Mapping.list.transact(xa).unsafePerformSync.map { a => ((a._1, a._2), a._3) }.toMap
     RawMap.list.transact(xa).unsafePerformSync.map {
