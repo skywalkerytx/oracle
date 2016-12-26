@@ -48,7 +48,7 @@ object Main {
   def main(args: Array[String]): Unit = {
     //DailyUpdate()
     val vec = new Vectorlize()
-    vec.GenMapping()
+    //vec.GenMapping()
     //vec.GenVector()
     //val res = vec.GenIndex()
     //playground()
