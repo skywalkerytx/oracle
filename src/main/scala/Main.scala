@@ -18,9 +18,24 @@ object Main {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
     import xa.yolo._
+    sql"""
+       select
+       industry,
+       concept,
+       area,
+       macross,
+       macdcross,
+       kdjcross from raw
 
-    sql"""select column_name, data_type
-from INFORMATION_SCHEMA.COLUMNS where table_name = 'raw' and data_type = 'text' ;""".query[(String, String)].list.transact(xa).run.take(50000000).foreach(println)
+
+       """.query[(String, String, String, String, String, String)]
+      .quick
+      .run
+
+
+    val t = (1, 2, 3)
+
+
   }
 
   def DailyUpdate() = {
@@ -33,15 +48,11 @@ from INFORMATION_SCHEMA.COLUMNS where table_name = 'raw' and data_type = 'text' 
   def main(args: Array[String]): Unit = {
     //DailyUpdate()
     val vec = new Vectorlize()
-    //vec.GenMapping()
+    vec.GenMapping()
     //vec.GenVector()
-    val res = vec.GenIndex()
-    res.foreach {
-      x =>
-        print(x._1, ' ')
-        x._2.foreach(x => print(x.toString + ' '))
-        println()
-    }
+    //val res = vec.GenIndex()
+    //playground()
+    //val res = vec.GetMapping()
 
   }
 }

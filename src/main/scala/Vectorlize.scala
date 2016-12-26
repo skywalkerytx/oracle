@@ -12,7 +12,7 @@ class Vectorlize {
 
   val splitchar = '；'
   val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
-  //.par
+
   val Queries: Map[String, Query0[String]] =
     Map(
       "concept" -> sql"select distinct concept from raw;".query[String],
@@ -27,21 +27,23 @@ class Vectorlize {
 
   val codes: List[String] = {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    sql"select distinct code from raw ".query[String].list.transact(xa).unsafePerformSync.take(all)
+    sql"select distinct code from raw ".query[String].list.transact(xa).unsafePerformSync
   }
 
   val dates: List[String] = {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync.take(all)
+    sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync
   }
 
   def GenMapping() = {
+    var gid = 0
     toMap.foreach {
       col =>
         val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-        val result = Queries(col).list.transact(xa).unsafePerformSync.take(all).flatMap(_.split(splitchar)).distinct.zipWithIndex.map(tp2 => MappingClass(tp2._1, col, tp2._2))
+        import xa.yolo._
+        val results: List[MappingClass] = Queries(col).list.transact(xa).unsafePerformSync.flatMap(_.split(splitchar)).distinct.zipWithIndex.map(tp2 => MappingClass(tp2._1, col, tp2._2))
         try {
-          InsertInto(result).transact(xa).unsafePerformSync
+          InsertInto(results).transact(xa).unsafePerformSync
         }
         catch {
           case ex: java.sql.BatchUpdateException => {
@@ -50,7 +52,21 @@ class Vectorlize {
               System.exit(2)
           }
         }
+        for (result <- results) {
+          UpdateGid(result.str, result.cat, gid).quick.unsafePerformSync
+          gid = gid + 1
+        }
     }
+  }
+
+  def UpdateGid(str: String, cat: String, gid: Int): Update0 = {
+    sql"""
+          UPDATE mapping
+          SET
+            gid = $gid
+          WHERE
+            str = $str AND cat = $cat
+      """.update
   }
 
   def InsertInto(data: List[MappingClass]) = {
@@ -73,7 +89,7 @@ class Vectorlize {
         (date,
           IndexByDate(date).list.
             transact(xa).unsafePerformSync.
-            take(all).flatMap(x => x.toList).toArray)
+            flatMap(x => x.toList).toArray)
     }.seq.toMap
   }
 
@@ -82,7 +98,17 @@ class Vectorlize {
   }
 
   def GetMapping()= {
+    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+    val raw = RawMap.list.transact(xa).unsafePerformSync.map(_.toList)
+    toMap.zipWithIndex.map {
+      case (col: String, i: Int) =>
+        val coldata = raw.map(_ (i)).flatMap(_.split(splitchar)).distinct
 
+    }
+  }
+
+  def RawMap: Query0[(String, String, String, String, String, String)] = {
+    sql"select industry,concept,area,macross,macdcross,kdjcross from raw".query[(String, String, String, String, String, String)]
   }
 
   def GenVector() = {
