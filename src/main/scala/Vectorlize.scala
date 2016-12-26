@@ -81,6 +81,10 @@ class Vectorlize {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
 
+  def GetMapping()= {
+
+  }
+
   def GenVector() = {
 
   }
