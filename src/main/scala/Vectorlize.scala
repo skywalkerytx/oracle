@@ -83,6 +83,25 @@ class Vectorlize {
     (r2, r1)
   }
 
+  def GenVector(): Map[(String, String), Array[Float]] = {
+    val xa = utils.GetDriverManagerTransactor
+    val index: Map[String, Array[Float]] = GetIndex
+    val mapping: Map[Key, Array[Float]] = GetMapping
+    val concept: Map[String, Array[Float]] = GetConcept
+    GetRaw.list.transact(xa).unsafePerformSync.par.map {
+      raw =>
+        (
+          (raw.code, raw.date),
+          Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
+            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
+            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
+            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
+            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
+          ) ++ index(raw.date) ++ concept(raw.date) ++ mapping(Key(raw.code, raw.date))
+        )
+    }.seq.toMap
+  }
+
   def GetConcept: Map[String, Array[Float]] = {
     dates.par.map {
       date =>
@@ -91,7 +110,7 @@ class Vectorlize {
           ConceptByDate(date).list.transact(xa).unsafePerformSync.
             flatMap(x => x.toList).toArray
         )
-    }
+    }.seq.toMap
   }
 
   def ConceptByDate(date: String): Query0[(Float, Float, Float, Float, Float, Float, Float)] = {
@@ -113,12 +132,12 @@ class Vectorlize {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
 
-  def GetMapping() = {
+  def GetMapping(): Map[Key, Array[Float]] = {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
     val mappings: Map[(String, String), Int] = Mapping.list.transact(xa).unsafePerformSync.map { a => ((a._1, a._2), a._3) }.toMap
     RawMap.list.transact(xa).unsafePerformSync.map {
       rmc =>
-        val key = (rmc.code, rmc.date)
+        val key = Key(rmc.code, rmc.date)
         val mappingarray = new Array[Float](277)
         val tomap = rmc.productIterator.toList
         //val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
@@ -130,7 +149,7 @@ class Vectorlize {
           }
         }
         (key, mappingarray)
-    }
+    }.toMap
   }
 
   def Mapping: Query0[(String, String, Int)] = {
@@ -141,13 +160,42 @@ class Vectorlize {
     sql"select code,date,industry,concept,area,macross,macdcross,kdjcross from raw".query[RawMapClass]
   }
 
-  def GenVector() = {
-
+  def GetRaw: Query0[Raw] = {
+    sql"""
+       select
+        code,date,
+                 op,mx,mn,clse,
+                 aft,bfe,amp,vol,
+                 market,market_exchange,
+                 on_board,total,
+                 zt,dt,
+                 shiyinlv,shixiaolv,shixianlv,shijinglv,
+                 ma5,ma10,ma20,ma30,ma60,
+                 macddif,macddea,macdmacd,
+                 k,d,j,
+                 berlinmid,berlinup,berlindown,
+                 psy,psyma,rsi1,rsi2,rsi3,zhenfu,volratio
+       from
+        raw
+      """.query[Raw]
   }
+
+  case class Raw(code: String, date: String, op: Float, mx: Float, mn: Float, clse: Float,
+                 aft: Float, bfe: Float, amp: Float, vol: Float,
+                 market: Float, market_exchange: Float, on_board: Float, total: Float,
+                 zt: Float, dt: Float, shiyinlv: Float, shixiaolv: Float, shixianlv: Float, shijinglv: Float,
+                 ma5: Float, ma10: Float, ma20: Float, ma30: Float, ma60: Float,
+                 macddif: Float, macddea: Float, macdmacd: Float,
+                 k: Float, d: Float, j: Float,
+                 berlinmid: Float, berlinup: Float, berlindown: Float,
+                 psy: Float, psyma: Float, rsi1: Float, rsi2: Float, rsi3: Float, zhenfu: Float, volratio: Float
+                )
 
   case class RawMapClass(code: String, date: String, industry: String, concept: String, area: String, macross: String, macdcross: String, kdjcross: String)
 
   case class MappingClass(str: String, cat: String)
+
+  case class Key(code: String, date: String)
 
   //case class IndexClass(open:Float,close:Float,low:Float,high:Float,volume:Float,money:Float,delta:Float)
 

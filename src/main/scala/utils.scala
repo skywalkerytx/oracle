@@ -1,3 +1,5 @@
+import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+
 import doobie.imports.DriverManagerTransactor
 
 import scalaz.concurrent.Task
@@ -16,7 +18,17 @@ object utils {
 
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
-  case class Raw(code: String, name: String, date: String,
+  def save(obj: Any, path: String) = {
+    val oos = new ObjectOutputStream(new FileOutputStream(path))
+    oos.writeObject(obj)
+  }
+
+  def load(path: String) = {
+    val ois = new ObjectInputStream(new FileInputStream(path))
+    ois.readObject()
+  }
+
+  case class Raw(code: String, date: String,
                  industry: String, concept: String, area: String,
                  op: Float, mx: Float, mn: Float, clse: Float,
                  aft: Float, bfe: Float, amp: Float, vol: Float,
