@@ -83,10 +83,25 @@ class Vectorlize {
     (r2, r1)
   }
 
+  def GetConcept: Map[String, Array[Float]] = {
+    dates.par.map {
+      date =>
+        val xa = utils.GetDriverManagerTransactor
+        (date,
+          ConceptByDate(date).list.transact(xa).unsafePerformSync.
+            flatMap(x => x.toList).toArray
+        )
+    }
+  }
+
+  def ConceptByDate(date: String): Query0[(Float, Float, Float, Float, Float, Float, Float)] = {
+    sql"select amount,uppercent,downpercent,drawpercent,amp,wamp,aprofit from rawconcept where date = $date order by concept asc".query[(Float, Float, Float, Float, Float, Float, Float)]
+  }
+
   def GetIndex(): Map[String, Array[Float]] = {
     dates.par.map {
       date =>
-        val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+        val xa = utils.GetDriverManagerTransactor
         (date,
           IndexByDate(date).list.
             transact(xa).unsafePerformSync.

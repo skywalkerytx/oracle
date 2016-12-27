@@ -1,3 +1,7 @@
+import doobie.imports.DriverManagerTransactor
+
+import scalaz.concurrent.Task
+
 /**
   * Created by nova on 16-12-20.
   */
@@ -9,6 +13,8 @@ object utils {
     val these = f.listFiles
     these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
   }
+
+  def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
   case class Raw(code: String, name: String, date: String,
                  industry: String, concept: String, area: String,
