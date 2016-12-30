@@ -39,9 +39,12 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    DailyUpdate()
-    val vec = new Vectorlize()
+    //DailyUpdate()
+    //val vec = new Vectorlize()
     //val res = vec.GenVector()
+    val label = new Labels
+    val res = label.GenLabel(label.checkA, 2)
+    res foreach println
   }
 
   def DailyUpdate() = {

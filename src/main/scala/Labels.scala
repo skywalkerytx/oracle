@@ -20,7 +20,7 @@ class Labels {
       fall
   }
 
-  def GenLabel(CheckFunction: (Array[Float], Array[Float]) => Int, delta: Int): Map[String, IndexedSeq[(Key, Int)]] = {
+  def GenLabel(CheckFunction: (Array[Float], Array[Float]) => Int, delta: Int): Map[Key, Int] = {
     val xa = utils.GetDriverManagerTransactor
     val raw = query.list.transact(xa).unsafePerformSync.groupBy {
       _._1
@@ -31,11 +31,14 @@ class Labels {
           case (code: String, date: String, op: Float, mx: Float, mn: Float, clse: Float) =>
             (date, Array(op, mx, mn, clse))
         }.sortBy(_._1)
-        (code, 0 until data.length - delta map {
+        0 until data.length - delta map {
           i =>
             (Key(code, data(i)._1), CheckFunction(data(i + 1)._2, data(i + 2)._2))
-        })
-    }.seq.toMap
+        }
+    }.reduce {
+      (a, b) =>
+        a ++ b
+    }.toMap
   }
 
   def query: Query0[(String, String, Float, Float, Float, Float)] = sql"select code,date,op,mx,mn,clse from raw".query[(String, String, Float, Float, Float, Float)]
