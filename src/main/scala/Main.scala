@@ -30,7 +30,7 @@ object Main {
 
        """.query[(String, String, String, String, String, String)]
       .quick
-      .run
+      .unsafePerformSync
 
 
     val t = (1, 2, 3)
@@ -39,9 +39,9 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    //DailyUpdate()
+    DailyUpdate()
     val vec = new Vectorlize()
-    val res = vec.GenVector()
+    //val res = vec.GenVector()
   }
 
   def DailyUpdate() = {

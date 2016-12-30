@@ -7,6 +7,7 @@ import doobie.imports._
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
+import scala.language.postfixOps
 
 /**
   * Created by nova on 16-12-20.
@@ -19,10 +20,6 @@ class ZipReader {
     sql"delete from raw;delete from rawindex;delete from rawconcept;".update.quick.unsafePerformSync
   }
 
-  def playground() = {
-  }
-
-
   def ReadAll() = {
 
     val ziplist = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip"))
@@ -31,7 +28,6 @@ class ZipReader {
         val csvs = reader(file.getPath).toArray
         csvs.foreach {
           csv =>
-            println(csv.FileName)
             try {
               csv.FileName match {
                 case "rawindex" => InsertIndexRaw(csv.csv)
@@ -147,9 +143,9 @@ class ZipReader {
     entries.map {
       file =>
         file.getName match {
-          case name if (name == "index data.csv") => CSV("rawindex", matching(zip.getInputStream(file), GlobalConfig.LegalIndexInformation))
-          case name if (name == "stock overview.csv") => CSV("rawstock", matching(zip.getInputStream(file), GlobalConfig.LegalStockInformation))
-          case name if (name == "industry overview.csv") => CSV("rawconcept", matching(zip.getInputStream(file), GlobalConfig.LegalConceptInformation))
+          case name if name == "index data.csv" => CSV("rawindex", matching(zip.getInputStream(file), GlobalConfig.LegalIndexInformation))
+          case name if name == "stock overview.csv" => CSV("rawstock", matching(zip.getInputStream(file), GlobalConfig.LegalStockInformation))
+          case name if name == "industry overview.csv" => CSV("rawconcept", matching(zip.getInputStream(file), GlobalConfig.LegalConceptInformation))
         }
     }
   }

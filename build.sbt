@@ -1,11 +1,10 @@
-name := "hello"
+name := "oracle"
 
 version := "0.1"
 
 scalaVersion := "2.11.8"
 
-
-
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 libraryDependencies += "org.tpolecat" % "doobie-core_2.11" % "0.3.0"
 libraryDependencies += "org.tpolecat" % "doobie-contrib-postgresql_2.11" % "0.3.0"

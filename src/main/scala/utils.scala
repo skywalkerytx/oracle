@@ -1,15 +1,26 @@
 import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
 
-import doobie.imports.DriverManagerTransactor
+import doobie.imports._
 
+import scalaz._
+import Scalaz._
 import scalaz.concurrent.Task
-
 /**
   * Created by nova on 16-12-20.
   */
 object utils {
 
   import java.io.File
+
+  val codes: List[String] = {
+    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+    sql"select distinct code from raw ".query[String].list.transact(xa).unsafePerformSync
+  }
+
+  val dates: List[String] = {
+    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+    sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync
+  }
 
   def recursiveListFiles(f: File): Array[File] = {
     val these = f.listFiles
@@ -55,5 +66,7 @@ object utils {
                         uppercent: Float, downpercent: Float, drawpercent: Float,
                         amp: Float, wamp: Float
                        )
+
+  case class Key(code: String, date: String)
 
 }

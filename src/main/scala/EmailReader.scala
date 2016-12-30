@@ -90,13 +90,6 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
     return true
   }
 
-  def Length() = {
-    val prop = Prop()
-    val store = prop._1
-    val inbox = prop._2
-    inbox.getMessageCount - inbox.getDeletedMessageCount
-  }
-
   protected def Prop() = {
     val props = System.getProperties
     props.setProperty("mail.store.protocol", "imaps")
@@ -108,21 +101,11 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "rav
     (store, inbox)
   }
 
-  def playground() = {
-    val subjectstr = "市场全息数据推送"
+  def Length() = {
     val prop = Prop()
     val store = prop._1
     val inbox = prop._2
-    val subject = new SubjectTerm(subjectstr)
-    val Size = new SizeTerm(ComparisonTerm.GE, 1024)
-    val Final = new AndTerm(subject, Size)
-    val types = inbox.search(Final).map(_.getContent.asInstanceOf[Multipart]).flatMap {
-      parts =>
-        (0 until parts.getCount).map(x => parts.getBodyPart(x)).map(_.getContentType.split(';').head)
-    }
-    inbox.close(true)
-    store.close()
-    types
+    inbox.getMessageCount - inbox.getDeletedMessageCount
   }
 
 }

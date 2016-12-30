@@ -8,6 +8,8 @@ import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
 
+import utils.Key, utils.codes, utils.dates
+
 class Vectorlize {
 
   val splitchar = '；'
@@ -25,15 +27,7 @@ class Vectorlize {
 
   val all = 1000000000
 
-  val codes: List[String] = {
-    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    sql"select distinct code from raw ".query[String].list.transact(xa).unsafePerformSync
-  }
 
-  val dates: List[String] = {
-    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync
-  }
 
   def GenMapping() = {
     var gid = 0
@@ -54,7 +48,7 @@ class Vectorlize {
           }
         }
         for (result <- results) {
-          UpdateGid(result.str, result.cat, gid).quick.unsafePerformSync
+          UpdateGid(result.str, result.cat, gid).run.transact(xa).unsafePerformSync
           gid = gid + 1
         }
     }
@@ -195,7 +189,6 @@ class Vectorlize {
 
   case class MappingClass(str: String, cat: String)
 
-  case class Key(code: String, date: String)
 
   //case class IndexClass(open:Float,close:Float,low:Float,high:Float,volume:Float,money:Float,delta:Float)
 
