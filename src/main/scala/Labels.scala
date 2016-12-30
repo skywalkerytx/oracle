@@ -12,6 +12,8 @@ class Labels {
   val rise = 1
   val fall = -1
 
+  def LabelA(delta: Int = 2) = GenLabel(this.checkA, delta)
+
   def checkA(day1: Array[Float], day2: Array[Float]): Int = {
     //compare d+1 & d+2
     if (day1(0) * amp >= day2(1))
@@ -33,7 +35,7 @@ class Labels {
         }.sortBy(_._1)
         0 until data.length - delta map {
           i =>
-            (Key(code, data(i)._1), CheckFunction(data(i + 1)._2, data(i + 2)._2))
+            (Key(code, data(i)._1), CheckFunction(data(i + 1)._2, data(i + delta)._2))
         }
     }.reduce {
       (a, b) =>
@@ -42,6 +44,15 @@ class Labels {
   }
 
   def query: Query0[(String, String, Float, Float, Float, Float)] = sql"select code,date,op,mx,mn,clse from raw".query[(String, String, Float, Float, Float, Float)]
+
+  def LabelB(delta: Int = 2) = GenLabel(this.checkB, delta)
+
+  def checkB(day1: Array[Float], day2: Array[Float]): Int = {
+    if (day1(3) * amp >= day2(1))
+      rise
+    else
+      fall
+  }
 
   case class rawlabel(date: String, data: Array[Float])
 
