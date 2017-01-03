@@ -39,8 +39,7 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    //DailyUpdate()
-    //Playground.lalala
+    DailyUpdate()
   }
 
   def DailyUpdate() = {
