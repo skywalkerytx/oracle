@@ -1,7 +1,15 @@
 import java.io._
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.zip.{ZipException, ZipFile}
+
+
+import doobie.imports._
+
+import scalaz._
+import Scalaz._
+import scalaz.concurrent.Task
+import scala.language.postfixOps
+import doobie.contrib.postgresql.pgtypes._
 
 
 /**
@@ -41,9 +49,10 @@ object Main {
 
   }
 
+
   def main(args: Array[String]): Unit = {
 
-    DailyUpdate()
+    DailyUpdate(true)
 
   }
 
@@ -62,7 +71,52 @@ object Main {
     }
     val vec: Map[(String, String), Array[Float]] = new Vectorlize().GenMapping.DataVector // code date vector
     if (SavetoDatabase) {
+      val xa = utils.GetDriverManagerTransactor
+      try {
 
+        DailyQuery(vec.map {
+          vector =>
+            utils.Features(vector._1._1, vector._1._2, vector._2)
+        }.toList, "vector").transact(xa).unsafePerformSync
+        println("here we go")
+      }
+      catch {
+        case ex: java.sql.BatchUpdateException => {
+          val eex = ex.getNextException
+          if (!eex.getMessage.contains("duplicate key")) {
+            println("excetion when adding feature to database:")
+            println(eex.getMessage)
+            System.exit(2)
+          }
+        }
+      }
+      try {
+        val label = new Labels().DataBaseLabel
+        DailyQuery(label, "label").transact(xa).unsafePerformSync
+      }
+      catch {
+        case ex: java.sql.BatchUpdateException => {
+          val eex = ex.getNextException
+          if (!eex.getMessage.contains("duplicate key")) {
+            println("excetion when adding label to database:")
+            println(eex.getMessage)
+            System.exit(2)
+          }
+        }
+      }
     }
+    (vec, label)
+  }
+
+  def DailyQuery(data: List[utils.Features], table: String) = {
+    val sql =
+      """
+        INSERT INTO """ +
+        table +
+        """
+         (code,date,vector)
+          VALUES(?,?,?)
+      """
+    Update[utils.Features](sql).updateMany(data)
   }
 }

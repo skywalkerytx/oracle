@@ -175,4 +175,5 @@ class ZipReader {
 
   case class RawConcept(concept: String, amount: Float, uppercent: Float, downpercent: Float, drawpercent: Float, amp: Float, wamp: Float, aprofit: Float, date: String)
 
+
 }

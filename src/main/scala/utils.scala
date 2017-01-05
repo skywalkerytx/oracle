@@ -69,4 +69,5 @@ object utils {
 
   case class Key(code: String, date: String)
 
+  case class Features(code: String, date: String, vector: Array[Float])
 }
