@@ -6,7 +6,7 @@ import java.nio.file.Paths
   */
 
 
-class EmailReader(username: String = "908910385@qq.com", password: String = "ravigxtqyvmcbcjg") {
+class EmailReader(username: String = "908910385@qq.com", password: String = "yavimvukjpavbbbc") {
 
   import javax.mail._
   import javax.mail.search._

@@ -17,7 +17,7 @@ class ZipReader {
   def clear() = {
     val dmt = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
     import dmt.yolo._
-    sql"delete from raw;delete from rawindex;delete from rawconcept;".update.quick.unsafePerformSync
+    sql"delete from raw;delete from rawindex;delete from rawconcept;".update.run.transact(dmt).unsafePerformSync
   }
 
   def ReadAll() = {
@@ -38,8 +38,10 @@ class ZipReader {
             catch {
               case ex: java.sql.BatchUpdateException => {
                 val eex = ex.getNextException
-                if (!eex.getMessage.contains("duplicate key"))
+                if (!eex.getMessage.contains("duplicate key")) {
+                  println(eex.getMessage)
                   System.exit(2)
+                }
               }
             }
         }
@@ -61,10 +63,10 @@ class ZipReader {
           cols(38).toFloat, cols(39).toFloat, cols(40).toFloat, cols(41).toFloat, cols(42).toFloat,
           cols(43).toFloat, cols(44).toFloat, cols(45).toFloat, cols(46).toFloat, cols(47).toFloat)
     }
-    RawStockBatch(data).quick.unsafePerformSync
+    RawStockBatch(data).transact(dmt).unsafePerformSync
   }
 
-  private def RawStockBatch(data: List[RawStock]) = {
+  private def RawStockBatch(data: List[RawStock]): ConnectionIO[Int] = {
     val sql =
       """
           INSERT INTO raw
@@ -87,7 +89,7 @@ class ZipReader {
         RawIndex(cols(0), cols(1), cols(2).toFloat, cols(3).toFloat, cols(4).toFloat, cols(5).toFloat,
           cols(6).toFloat, cols(7).toFloat, cols(8).toFloat)
     }
-    RawIndexBatch(data).quick.unsafePerformSync
+    RawIndexBatch(data).transact(dmt).unsafePerformSync
   }
 
   private def RawIndexBatch(data: List[RawIndex]) = {
@@ -113,7 +115,7 @@ class ZipReader {
           RawConcept(cols(0), cols(1).toFloat, cols(2).toFloat, cols(3).toFloat, cols(4).toFloat, cols(5).toFloat,
             cols(6).toFloat, cols(7).toFloat, cols(8))
     }
-    RawConceptBatch(data).quick.unsafePerformSync
+    RawConceptBatch(data).transact(dmt).unsafePerformSync
   }
 
   private def RawConceptBatch(data: List[RawConcept]) = {

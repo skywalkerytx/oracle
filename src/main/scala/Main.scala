@@ -39,7 +39,8 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    DailyUpdate()
+    val vec = DailyUpdate
+
   }
 
   def DailyUpdate() = {
@@ -49,5 +50,6 @@ object Main {
     val vec = new Vectorlize()
     zip.ReadAll
     vec.GenMapping()
+    vec.DataVector
   }
 }

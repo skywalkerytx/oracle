@@ -62,21 +62,27 @@ delta float NOT NULL,
 PRIMARY KEY (index_code,index_date)
 );
 
+
 CREATE TABLE IF NOT EXISTS Mapping(
 str varchar(64),
 cat varchar(12),
-id int,
+gid int,
 PRIMARY KEY(cat,str)
 );
 
 CREATE TABLE IF NOT EXISTS RawConcept(
 concept varchar(20),
-date varchar(11),
 amount int,
 uppercent float,
 downpercent float,
 drawpercent float,
 amp float,
 wamp float,
+aprofit float,
+date varchar(11),
 PRIMARY KEY(concept,date)
-)
+);
+
+CREATE INDEX ON RawConcept (date);
+
+CREATE INDEX ON RawIndex (index_date);

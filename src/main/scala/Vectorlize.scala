@@ -77,7 +77,7 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def GenVector(): Map[(String, String), Array[Float]] = {
+  def DataVector: Map[(String, String), Array[Float]] = {
     val xa = utils.GetDriverManagerTransactor
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping
@@ -91,7 +91,10 @@ class Vectorlize {
             raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
             raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
             raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
-          ) ++ index(raw.date) ++ concept(raw.date) ++ mapping(Key(raw.code, raw.date))
+          )
+            ++ index(raw.date)
+            ++ concept(raw.date)
+            ++ mapping(Key(raw.code, raw.date))
         )
     }.seq.toMap
   }

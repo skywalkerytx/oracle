@@ -24,5 +24,5 @@ libraryDependencies += "org.deeplearning4j" % "deeplearning4j-core" % "0.7.2"
 libraryDependencies += "org.nd4j" % "nd4j-cuda-8.0" % "0.7.2"
 libraryDependencies += "org.datavec" % "datavec-api" % "0.7.2"
 
-//resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository" //mxnet cache
-//libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT" seems it was forced to run on cpu, give up
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository" //mxnet cache
+libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT" //seems it was forced to run on cpu, give up
