@@ -1,4 +1,7 @@
-import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io._
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.zip.{ZipException, ZipFile}
 
 
 /**
@@ -39,16 +42,25 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    val vec = DailyUpdate
+
+    //val vec = DailyUpdate
 
   }
 
   def DailyUpdate() = {
-    val mail = new EmailReader()
-    mail.GetAttachments
-    val zip = new ZipReader()
+    val today = Calendar.getInstance
+    val ff = new SimpleDateFormat("yyyyMMdd")
+    val filename = "data/holo/overview-push-" + ff.format(today.getTime) + ".zip"
+    if (!new File(filename).exists && today.get(Calendar.HOUR_OF_DAY) >= 18) {
+      //Today is not getted
+      val mail = new EmailReader()
+      mail.GetAttachments
+      println("mail readed")
+      val zip = new ZipReader()
+      zip.ReadAll
+      println("zip readed")
+    }
     val vec = new Vectorlize()
-    zip.ReadAll
     vec.GenMapping()
     vec.DataVector
   }

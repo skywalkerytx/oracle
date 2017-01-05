@@ -134,8 +134,9 @@ class ZipReader {
     }
     catch {
       case ex: ZipException => {
-        println(filename);
-        System.exit(3);
+        println(ex.getMessage)
+        println("zip error:" + filename)
+        System.exit(3)
         new ZipFile(filename)
       }
 

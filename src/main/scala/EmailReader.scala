@@ -1,5 +1,6 @@
 import java.io.{File, FileOutputStream}
 import java.nio.file.Paths
+import java.util.zip.{ZipException, ZipFile}
 
 /**
   * Created by nova on 16-12-19.
@@ -28,13 +29,31 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
       message =>
         val date = trim(message.getSubject)
         (date, message.getMessageNumber)
-    }.filter(message => message._1.isDefined && !java.nio.file.Files.exists(Paths.get("data/holo/overview-push-" + message._1.get + ".zip")))
+    }.filter {
+      message =>
+        val invalidzip = try {
+          if (message._1.isDefined) {
+            val filename = "data/holo/overview-push-" + message._1.get + ".zip"
+            new ZipFile(filename).close()
+            false
+          }
+          else {
+            true
+          }
+        }
+        catch {
+          case ex: Exception =>
+            true
+        }
+        message._1.isDefined && invalidzip
+    }
     messages.foreach {
       message =>
         var flag = true
         while (flag) {
           try {
             AttachmentByNumber(message._2, store, inbox)
+
             flag = false
           }
           catch {
@@ -69,6 +88,8 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     ).filterNot(part => part.getContentType.contains("TEXT")).head
     val IS = attachment.getInputStream
     val f = new File("data/holo/" + attachment.getFileName)
+    if (f.exists)
+      f.delete
     val FOS = new FileOutputStream(f)
     val buffer = new Array[Byte](4096)
     var read = 0
@@ -90,6 +111,13 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     return true
   }
 
+  def Length() = {
+    val prop = Prop()
+    val store = prop._1
+    val inbox = prop._2
+    inbox.getMessageCount - inbox.getDeletedMessageCount
+  }
+
   protected def Prop() = {
     val props = System.getProperties
     props.setProperty("mail.store.protocol", "imaps")
@@ -99,13 +127,6 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     val inbox = store.getFolder("INBOX")
     inbox.open(Folder.READ_ONLY)
     (store, inbox)
-  }
-
-  def Length() = {
-    val prop = Prop()
-    val store = prop._1
-    val inbox = prop._2
-    inbox.getMessageCount - inbox.getDeletedMessageCount
   }
 
 }
