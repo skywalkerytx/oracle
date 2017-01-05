@@ -43,16 +43,16 @@ object Main {
 
   def main(args: Array[String]): Unit = {
 
-    //val vec = DailyUpdate
+    DailyUpdate()
 
   }
 
-  def DailyUpdate() = {
+  def DailyUpdate(SavetoDatabase: Boolean = false) = {
     val today = Calendar.getInstance
     val ff = new SimpleDateFormat("yyyyMMdd")
     val filename = "data/holo/overview-push-" + ff.format(today.getTime) + ".zip"
     if (!new File(filename).exists && today.get(Calendar.HOUR_OF_DAY) >= 18) {
-      //Today is not getted
+      println("update todays data")
       val mail = new EmailReader()
       mail.GetAttachments
       println("mail readed")
@@ -60,8 +60,9 @@ object Main {
       zip.ReadAll
       println("zip readed")
     }
-    val vec = new Vectorlize()
-    vec.GenMapping()
-    vec.DataVector
+    val vec: Map[(String, String), Array[Float]] = new Vectorlize().GenMapping.DataVector // code date vector
+    if (SavetoDatabase) {
+
+    }
   }
 }

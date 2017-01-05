@@ -83,6 +83,17 @@ date varchar(11),
 PRIMARY KEY(concept,date)
 );
 
-CREATE INDEX ON RawConcept (date);
+CREATE INDEX IF NOT EXISTS RawConcept_date_idx ON RawConcept (date);
 
-CREATE INDEX ON RawIndex (index_date);
+CREATE INDEX IF NOT EXISTS RawIndex_index_date_idx ON RawIndex (index_date);
+
+CREATE TABLE IF NOT EXISTS Vector(
+code char(9),
+date char(11),
+vector float[],
+PRIMARY KEY (code,date)
+);
+
+CREATE INDEX IF NOT EXISTS Vector_code_idx ON Vector(code);
+
+CREATE INDEX IF NOT EXISTS Vector_date_idx ON Vector(date);

@@ -28,8 +28,7 @@ class Vectorlize {
   val all = 1000000000
 
 
-
-  def GenMapping() = {
+  def GenMapping: Vectorlize = {
     var gid = 0
     toMap.foreach {
       col =>
@@ -52,6 +51,7 @@ class Vectorlize {
           gid = gid + 1
         }
     }
+    return this
   }
 
   def UpdateGid(str: String, cat: String, gid: Int): Update0 = {
