@@ -9,6 +9,7 @@ import Scalaz._
 import scalaz.concurrent.Task
 import scala.language.postfixOps
 import doobie.contrib.postgresql.pgtypes._
+import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 import doobie.syntax.string.Builder
 import org.postgresql.util.PSQLException
 import utils.Features
@@ -26,16 +27,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     DailyUpdate(true)
-  }
-
-  def DailyQuery(tablename:String,Feature:Features) = {
-    val query =
-      s"""
-        INSERT INTO
-        ${tablename} (code,date,vector)
-        VALUES(?,?,?)
-      """
-    Update[Features](query).toUpdate0(Feature)
+    //Playground.DailyUpdate(true)
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false) = {
@@ -52,41 +44,37 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-
       val vec = new Vectorlize().GenMapping.DataBaseVector().par
       vec.foreach{
-        val xa = utils.GetDriverManagerTransactor
         vector=>
-          try {
-            DailyQuery("vector",vector).run.transact(xa).unsafePerformSync
-          }
-          catch {
-            case ex:PSQLException =>
-              if (!ex.getMessage.contains("duplicate key value violates unique constraint")) {
-                println(ex.getMessage)
-                println("Vector Error at:")
-                println("    "+vector.code,vector.date)
-              }
-          }
+          Insert(DailyQuery("vector", vector))
       }
       val labels = new Labels().DataBaseLabel.par
       labels.foreach{
         label=>
-          val xa = utils.GetDriverManagerTransactor
-          try {
-            DailyQuery("label",label).run.transact(xa).unsafePerformSync
-          }
-          catch {
-            case ex:PSQLException =>
-              if (!ex.getMessage.contains("duplicate key value violates unique constraint")) {
-                println(ex.getMessage)
-                println("Label Error at:")
-                println("    "+label.code,label.date)
-              }
-          }
+          Insert(DailyQuery("label", label))
       }
     }
+  }
 
+  def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
+    val query =
+      s"""
+        INSERT INTO
+        ${tablename} (code,date,vector)
+        VALUES(?,?,?)
+      """
+    Update[Features](query).toUpdate0(Feature).withUniqueGeneratedKeys("code", "date")
+  }
+
+  def Insert(query: ConnectionIO[Features]) = {
+    val taskunit = for {
+      xa <- utils.GetHikariTransactor
+      a <- query.transact(xa).attemptSomeSqlState {
+        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
+      }.ensuring(xa.shutdown)
+    } yield a
+    taskunit.unsafePerformSync
   }
 
 }

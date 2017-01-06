@@ -1,15 +1,29 @@
 import ml.dmlc.mxnet._
 import ml.dmlc.mxnet.optimizer.SGD
 
-import doobie.imports.Query0
-import doobie.util.query.Query
-import doobie.util.update.Update
-import doobie.contrib.postgresql.pgtypes._
 
+import java.io._
+import java.text.SimpleDateFormat
+import java.util.Calendar
+
+import doobie.imports._
+
+import scalaz._
+import Scalaz._
+import scalaz.concurrent.Task
+import scala.language.postfixOps
+import doobie.contrib.postgresql.pgtypes._
+import org.postgresql.util.PSQLException
+import utils.Features
+import scala.language.postfixOps
+
+
+import doobie.contrib.hikari.hikaritransactor._
+import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 /**
   * Created by nova on 17-1-1.
   */
-class Playground {
+object Playground {
   def dl4jground = {
     val data = Symbol.Variable("data")
     val fc1 = Symbol.FullyConnected(name = "fc1")()(Map("data" -> data, "num_hidden" -> 128))
@@ -82,28 +96,39 @@ class Playground {
 
   }
 
-  def doobieground = {
-    case class Code(country: String)
-    case class City(code: Code, name: String, population: Int)
-    val asc = true
-      val sql = s"""
-    SELECT countrycode, name, population
-    FROM   city
-    WHERE  countrycode = ?
-    ORDER BY name ${if (asc) "ASC" else "DESC"}
-  """
-      Query[Code, City](sql, None).toQuery0(Code("233"))
-      import utils.Features
-      val a = Features("a","b",Array(1,1))
-      val tablename = "lalala"
-      val query =
-        s"""
+  def DailyUpdate(SavetoDatabase: Boolean = false) = {
+    if (SavetoDatabase) {
+      val vec = new Vectorlize().GenMapping.DataBaseVector().par
+      vec.foreach {
+        vector =>
+          Insert(DailyQuery("vector", vector))
+      }
+      val labels = new Labels().DataBaseLabel.par
+      labels.foreach {
+        label =>
+          Insert(DailyQuery("label", label))
+      }
+    }
+  }
+
+  def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
+    val query =
+      s"""
         INSERT INTO
         ${tablename} (code,date,vector)
         VALUES(?,?,?)
       """
-      //Update[Features](query).toUpdate0(a)
+    Update[Features](query).toUpdate0(Feature).withUniqueGeneratedKeys("code", "date")
   }
 
+  def Insert(query: ConnectionIO[Features]) = {
+    val taskunit = for {
+      xa <- utils.GetHikariTransactor
+      a <- query.transact(xa).attemptSomeSqlState {
+        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
+      }.ensuring(xa.shutdown)
+    } yield a
+    taskunit.unsafePerformSync
+  }
 
 }

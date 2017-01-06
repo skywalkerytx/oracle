@@ -3,6 +3,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
 
+import doobie.contrib.hikari.hikaritransactor.HikariTransactor
 import doobie.imports._
 
 import scalaz._
@@ -60,6 +61,9 @@ object utils {
   }
 
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+
+
+  def GetHikariTransactor = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
   def save(obj: Any, path: String) = {
     val oos = new ObjectOutputStream(new FileOutputStream(path))
