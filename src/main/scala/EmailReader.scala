@@ -87,9 +87,9 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
       x => Content.getBodyPart(x)
     ).filterNot(part => part.getContentType.contains("TEXT")).head
     val IS = attachment.getInputStream
-    val f = new File("data/holo/" + attachment.getFileName)
-    if (f.exists)
-      f.delete
+    val filename = "data/holo/" + attachment.getFileName
+    println("writing: " + filename)
+    val f = new File(filename)
     val FOS = new FileOutputStream(f)
     val buffer = new Array[Byte](4096)
     var read = 0
@@ -111,13 +111,6 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     return true
   }
 
-  def Length() = {
-    val prop = Prop()
-    val store = prop._1
-    val inbox = prop._2
-    inbox.getMessageCount - inbox.getDeletedMessageCount
-  }
-
   protected def Prop() = {
     val props = System.getProperties
     props.setProperty("mail.store.protocol", "imaps")
@@ -127,6 +120,13 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     val inbox = store.getFolder("INBOX")
     inbox.open(Folder.READ_ONLY)
     (store, inbox)
+  }
+
+  def Length() = {
+    val prop = Prop()
+    val store = prop._1
+    val inbox = prop._2
+    inbox.getMessageCount - inbox.getDeletedMessageCount
   }
 
 }
