@@ -70,6 +70,7 @@ object Main {
       println("zip readed")
     }
     val vec: Map[(String, String), Array[Float]] = new Vectorlize().GenMapping.DataVector // code date vector
+    val label = new Labels().DataBaseLabel
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
       try {
@@ -91,7 +92,6 @@ object Main {
         }
       }
       try {
-        val label = new Labels().DataBaseLabel
         DailyQuery(label, "label").transact(xa).unsafePerformSync
       }
       catch {
