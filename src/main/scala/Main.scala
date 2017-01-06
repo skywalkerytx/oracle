@@ -16,6 +16,7 @@ import org.postgresql.util.PSQLException
 import utils.Features
 
 import scala.collection.immutable.Iterable
+import scala.collection.parallel.ParIterable
 
 
 /**
@@ -27,8 +28,21 @@ object Main {
 
 
   def main(args: Array[String]): Unit = {
-    BasicConfigurator.configure();
-    DailyUpdate(true)
+    utils.save(new Vectorlize().DataBaseVector,"data/vec.obj")
+    utils.save(new Labels().DataBaseLabel,"data/label.obj")
+    /*
+    val vec = utils.load("data/vec.obj").asInstanceOf[scala.collection.parallel.ParIterable[Features]]
+    val labels = utils.load("data/label.obj").asInstanceOf[ParIterable[Features]]
+    vec.foreach {
+      feature =>
+        Insert("vector",feature)
+    }
+    labels.foreach{
+      label =>
+        Insert("label",label)
+    }
+    */
+    //DailyUpdate(true)
     //Playground.DailyUpdate(true)
   }
 
@@ -46,48 +60,24 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-      println("sv")
-      val vec = new Vectorlize()
-        //.GenMapping
-        .DataBaseVector()
-      println("endsv")
-      vec.foreach{
-        vector=>
-          Insert("vector", vector)
-      }
-      val labels = new Labels().DataBaseLabel
-      labels.foreach{
-        label=>
-          Insert("label", label)
-      }
     }
   }
 
   def Insert(tablename: String, Feature: Features) = {
-    val query: ConnectionIO[Features] = DailyQuery(tablename, Feature)
-    val xa = utils.GetDriverManagerTransactor
-    query.attemptSomeSqlState {
-      case UNIQUE_VIOLATION =>
-    }.transact(xa).unsafePerformSync
-    /*
+    val query = DailyQuery(tablename,Feature)
     val taskunit = for {
       xa <- utils.GetHikariTransactor
+      _ <- xa.configure{
+        hx =>
+          Task.delay(hx.setMaximumPoolSize(65535))
+      }
       a <- query.transact(xa).attemptSomeSqlState {
         case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
       }.
       ensuring(xa.shutdown)
     } yield a
-    try {
-      taskunit.unsafePerformSync
-    }
-    catch {
-      case ex:Throwable =>
-        println(ex.getMessage)
-        println(tablename,Feature.code,Feature.date,Feature.vector.length)
-        System.exit(5)
-    }*/
+    taskunit.unsafePerformSync
   }
-
   def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
     val query =
       s"""

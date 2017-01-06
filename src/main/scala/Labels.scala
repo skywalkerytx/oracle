@@ -56,11 +56,11 @@ class Labels {
       fall
   }
 
-  def DataBaseLabel: Iterable[Features] = {
+  def DataBaseLabel: scala.collection.parallel.ParIterable[Features] = {
     val la = LabelA()
     val lb = LabelB()
     la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key))))
-  }
+  }.par
 
   case class rawlabel(date: String, data: Array[Float])
 

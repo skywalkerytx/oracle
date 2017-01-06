@@ -98,7 +98,7 @@ object Playground {
 
   def DailyUpdate(SavetoDatabase: Boolean = false) = {
     if (SavetoDatabase) {
-      val vec = new Vectorlize().GenMapping.DataBaseVector().par
+      val vec = new Vectorlize().GenMapping.DataBaseVector.par
       vec.foreach {
         vector =>
           Insert(DailyQuery("vector", vector))
@@ -137,7 +137,10 @@ object Playground {
         val q = sql"select 42 from raw limit 1".query[Int].unique
         val p: Task[Int] = for {
           xa <- HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "") //utils.GetHikariTransactor
-          _ <- xa.configure(hx => Task.delay(/* do something with hx */ ()))
+          _ <- xa.configure{
+            hx =>
+              Task.delay(hx.setMaximumPoolSize(65535))
+          }
           a <- q.transact(xa) ensuring xa.shutdown
         } yield a
     }
