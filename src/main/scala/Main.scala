@@ -58,7 +58,7 @@ object Main {
         val xa = utils.GetDriverManagerTransactor
         vector=>
           try {
-            DailyQuery("vector",vector).run.transact(xa).unsafePerformAsync _
+            DailyQuery("vector",vector).run.transact(xa).unsafePerformSync
           }
           catch {
             case ex:PSQLException =>
@@ -74,7 +74,7 @@ object Main {
         label=>
           val xa = utils.GetDriverManagerTransactor
           try {
-            DailyQuery("label",label).run.transact(xa).unsafePerformAsync _
+            DailyQuery("label",label).run.transact(xa).unsafePerformSync
           }
           catch {
             case ex:PSQLException =>
