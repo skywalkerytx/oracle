@@ -77,10 +77,10 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def DataBaseVector = DataVector.map {
+  def DataBaseVector(BatchSize: Int = 5000) = DataVector.map {
     vector =>
       utils.Features(vector._1._1, vector._1._2, vector._2)
-  }.toList
+  }.toList.grouped(BatchSize)
 
   def DataVector: Map[(String, String), Array[Float]] = {
     val xa = utils.GetDriverManagerTransactor

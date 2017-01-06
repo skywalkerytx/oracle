@@ -54,10 +54,10 @@ class Labels {
       fall
   }
 
-  def DataBaseLabel: List[utils.Features] = {
+  def DataBaseLabel(BatchSize: Int = 5000) = {
     val la = LabelA()
     val lb = LabelB()
-    la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key)))).toList
+    la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key)))).toList.grouped(BatchSize)
   }
 
   case class rawlabel(date: String, data: Array[Float])

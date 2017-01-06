@@ -71,35 +71,41 @@ object Main {
 
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
-      try {
-        val vec = new Vectorlize().GenMapping.DataBaseVector // code date vector
+      val vec = new Vectorlize().GenMapping.DataBaseVector() // code date vector
         println("vector generated")
-        DailyQuery(vec, "vector").transact(xa).unsafePerformSync
-      }
-      catch {
-        case ex: java.sql.BatchUpdateException => {
-          val eex = ex.getNextException
-          if (!eex.getMessage.contains("duplicate key")) {
-            println("excetion when adding feature to database:")
-            println(eex.getMessage)
-            System.exit(2)
+      vec.foreach {
+        batch =>
+          try {
+            DailyQuery(batch, "vector").transact(xa).unsafePerformSync
           }
-        }
+          catch {
+            case ex: java.sql.BatchUpdateException => {
+              val eex = ex.getNextException
+              if (!eex.getMessage.contains("duplicate key")) {
+                println("excetion when adding feature to database:")
+                println(eex.getMessage)
+                System.exit(2)
+              }
+            }
+          }
       }
-      try {
-        val label = new Labels().DataBaseLabel
+      val label = new Labels().DataBaseLabel()
         println("label generated")
-        DailyQuery(label, "label").transact(xa).unsafePerformSync
-      }
-      catch {
-        case ex: java.sql.BatchUpdateException => {
-          val eex = ex.getNextException
-          if (!eex.getMessage.contains("duplicate key")) {
-            println("excetion when adding label to database:")
-            println(eex.getMessage)
-            System.exit(2)
+      label.foreach {
+        batch =>
+          try {
+            DailyQuery(batch, "label").transact(xa).unsafePerformSync
           }
-        }
+          catch {
+            case ex: java.sql.BatchUpdateException => {
+              val eex = ex.getNextException
+              if (!eex.getMessage.contains("duplicate key")) {
+                println("excetion when adding label to database:")
+                println(eex.getMessage)
+                System.exit(2)
+              }
+            }
+          }
       }
     }
   }
