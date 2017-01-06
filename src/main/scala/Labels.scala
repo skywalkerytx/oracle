@@ -1,3 +1,5 @@
+import utils.Features
+
 import scala.collection.immutable.IndexedSeq
 
 /**
@@ -13,14 +15,6 @@ class Labels {
   val fall = -1
 
   def LabelA(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkA, delta)
-
-  def checkA(day1: Array[Float], day2: Array[Float]): Int = {
-    //compare d+1 & d+2
-    if (day1(0) * amp >= day2(1))
-      rise
-    else
-      fall
-  }
 
   def GenLabel(CheckFunction: (Array[Float], Array[Float]) => Int, delta: Int): Map[Key, Int] = {
     val xa = utils.GetDriverManagerTransactor
@@ -47,12 +41,39 @@ class Labels {
 
   def LabelB(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkB, delta)
 
+  def DeltaToday: Iterator[List[Features]] = {
+    val xa = utils.GetDriverManagerTransactor
+    val Today = querybydate(utils.today).list.transact(xa).unsafePerformSync.groupBy(_._1)
+    val Yesterday = querybydate(utils.yesterday).list.transact(xa).unsafePerformSync.groupBy(_._1)
+    val codes = utils.codes
+    codes.par.map {
+      code =>
+        val today = Today(code).head
+        val yesterday = Yesterday(code).head
+        val d1 = Array(yesterday._3, yesterday._4, yesterday._5, yesterday._6)
+        val d2 = Array(today._3, today._4, today._5, today._6)
+        utils.Features(code, utils.yesterday, Array(checkA(d1, d2), checkB(d1, d2)))
+    }.toList.grouped(GlobalConfig.BatchSize)
+
+  }
+
+  def checkA(day1: Array[Float], day2: Array[Float]): Int = {
+    //compare d+1 & d+2
+    if (day1(0) * amp >= day2(1))
+      rise
+    else
+      fall
+  }
+
   def checkB(day1: Array[Float], day2: Array[Float]): Int = {
     if (day1(3) * amp >= day2(1))
       rise
     else
       fall
   }
+
+  def querybydate(date: String): Query0[(String, String, Float, Float, Float, Float)] =
+    sql"select code,date,op,mx,mn,clse from raw where date = $date ".query[(String, String, Float, Float, Float, Float)]
 
   def DataBaseLabel(BatchSize: Int = GlobalConfig.BatchSize) = {
     val la = LabelA()

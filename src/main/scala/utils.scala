@@ -1,4 +1,6 @@
 import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
 
 import doobie.imports._
@@ -21,6 +23,16 @@ object utils {
   val dates: List[String] = {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
     sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync
+  }
+  val today = {
+    val format = new SimpleDateFormat("yyyy-MM-dd")
+    format.format(Calendar.getInstance().getTime)
+  }
+  val yesterday = {
+    val format = new SimpleDateFormat("yyyy-MM-dd")
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DATE, -1)
+    format.format(cal.getTime)
   }
 
   def recursiveListFiles(f: File): Array[File] = {

@@ -2,7 +2,6 @@ import java.io._
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-
 import doobie.imports._
 
 import scalaz._
@@ -10,6 +9,7 @@ import Scalaz._
 import scalaz.concurrent.Task
 import scala.language.postfixOps
 import doobie.contrib.postgresql.pgtypes._
+import utils.Features
 
 
 /**
@@ -53,6 +53,7 @@ object Main {
   def main(args: Array[String]): Unit = {
     DailyUpdate(true)
 
+
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false) = {
@@ -71,13 +72,13 @@ object Main {
 
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
-      val vec = new Vectorlize().GenMapping.DataBaseVector() // code date vector
-      println(vec.toList.last.last.date)
+      val vec = new Vectorlize().GenMapping.DeltaToday // code date vector
       println("vector generated")
       vec.foreach {
         batch =>
           try {
             DailyQuery(batch, "vector").transact(xa).unsafePerformSync
+
           }
           catch {
             case ex: java.sql.BatchUpdateException => {
@@ -90,8 +91,8 @@ object Main {
             }
           }
       }
-      val label = new Labels().DataBaseLabel()
-        println("label generated")
+      val label: Iterator[List[Features]] = new Labels().DeltaToday
+      println("label generated")
       label.foreach {
         batch =>
           try {
