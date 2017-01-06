@@ -20,6 +20,7 @@ class ZipReader {
     sql"delete from raw;delete from rawindex;delete from rawconcept;".update.run.transact(dmt).unsafePerformSync
   }
 
+
   def ReadAll() = {
 
     val ziplist = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip"))

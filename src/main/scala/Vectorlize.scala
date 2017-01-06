@@ -77,7 +77,7 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def DataBaseVector(BatchSize: Int = 5000) = DataVector.map {
+  def DataBaseVector(BatchSize: Int = GlobalConfig.BatchSize) = DataVector.map {
     vector =>
       utils.Features(vector._1._1, vector._1._2, vector._2)
   }.toList.grouped(BatchSize)

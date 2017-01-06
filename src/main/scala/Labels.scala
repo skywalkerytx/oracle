@@ -54,7 +54,7 @@ class Labels {
       fall
   }
 
-  def DataBaseLabel(BatchSize: Int = 5000) = {
+  def DataBaseLabel(BatchSize: Int = GlobalConfig.BatchSize) = {
     val la = LabelA()
     val lb = LabelB()
     la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key)))).toList.grouped(BatchSize)

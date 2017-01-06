@@ -29,24 +29,10 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
       message =>
         val date = trim(message.getSubject)
         (date, message.getMessageNumber)
-    }.filter {
+    }.filter(
       message =>
-        val invalidzip = try {
-          if (message._1.isDefined) {
-            val filename = "data/holo/overview-push-" + message._1.get + ".zip"
-            new ZipFile(filename).close()
-            false
-          }
-          else {
-            true
-          }
-        }
-        catch {
-          case ex: Exception =>
-            true
-        }
-        message._1.isDefined && invalidzip
-    }
+        message._1.isDefined && utils.ZipValidation("data/holo/overview-push-" + message._1.get + ".zip")
+    )
     messages.foreach {
       message =>
         var flag = true

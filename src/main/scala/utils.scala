@@ -1,4 +1,5 @@
 import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.util.zip.{ZipException, ZipFile}
 
 import doobie.imports._
 
@@ -25,6 +26,18 @@ object utils {
   def recursiveListFiles(f: File): Array[File] = {
     val these = f.listFiles
     these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
+  }
+
+  def ZipValidation(filename: String): Boolean = {
+    val zip = try {
+      new ZipFile(filename)
+    }
+    catch {
+      case ex: ZipException =>
+        return false
+    }
+    zip.close
+    return true
   }
 
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
