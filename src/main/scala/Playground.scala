@@ -1,16 +1,16 @@
-import org.deeplearning4j.nn.api.OptimizationAlgorithm
-import org.deeplearning4j.nn.conf.{MultiLayerConfiguration, NeuralNetConfiguration}
-import org.deeplearning4j.nn.weights.WeightInit
+import ml.dmlc.mxnet._
+import ml.dmlc.mxnet.optimizer.SGD
+
+import doobie.imports.Query0
+import doobie.util.query.Query
+import doobie.util.update.Update
+import doobie.contrib.postgresql.pgtypes._
 
 /**
   * Created by nova on 17-1-1.
   */
 class Playground {
   def dl4jground = {
-    import ml.dmlc.mxnet._
-    import ml.dmlc.mxnet.optimizer.SGD
-
-    // model definition
     val data = Symbol.Variable("data")
     val fc1 = Symbol.FullyConnected(name = "fc1")()(Map("data" -> data, "num_hidden" -> 128))
     val act1 = Symbol.Activation(name = "relu1")()(Map("data" -> fc1, "act_type" -> "relu"))
@@ -80,6 +80,29 @@ class Playground {
     val acc = numCorrect.toFloat / numTotal
     println(s"Final accuracy = $acc")
 
+  }
+
+  def doobieground = {
+    case class Code(country: String)
+    case class City(code: Code, name: String, population: Int)
+    val asc = true
+      val sql = s"""
+    SELECT countrycode, name, population
+    FROM   city
+    WHERE  countrycode = ?
+    ORDER BY name ${if (asc) "ASC" else "DESC"}
+  """
+      Query[Code, City](sql, None).toQuery0(Code("233"))
+      import utils.Features
+      val a = Features("a","b",Array(1,1))
+      val tablename = "lalala"
+      val query =
+        s"""
+        INSERT INTO
+        ${tablename} (code,date,vector)
+        VALUES(?,?,?)
+      """
+      //Update[Features](query).toUpdate0(a)
   }
 
 

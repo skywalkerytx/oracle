@@ -24,14 +24,21 @@ object utils {
     val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
     sql"select distinct date from raw ".query[String].list.transact(xa).unsafePerformSync
   }
-  val today = {
+  val D2 = {
     val format = new SimpleDateFormat("yyyy-MM-dd")
     format.format(Calendar.getInstance().getTime)
   }
-  val yesterday = {
+  val D1 = {
     val format = new SimpleDateFormat("yyyy-MM-dd")
     val cal = Calendar.getInstance()
     cal.add(Calendar.DATE, -1)
+    format.format(cal.getTime)
+  }
+
+  val D0 = {
+    val format = new SimpleDateFormat("yyyy-MM-dd")
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DATE, -2)
     format.format(cal.getTime)
   }
 

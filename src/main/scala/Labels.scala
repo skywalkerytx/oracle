@@ -41,27 +41,6 @@ class Labels {
 
   def LabelB(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkB, delta)
 
-  def DeltaToday: Iterator[List[Features]] = {
-    val xa = utils.GetDriverManagerTransactor
-    val Today = querybydate(utils.today).list.transact(xa).unsafePerformSync.groupBy(_._1)
-    val Yesterday = querybydate(utils.yesterday).list.transact(xa).unsafePerformSync.groupBy(_._1)
-    val codes = utils.codes
-    codes.par.map {
-      code =>
-        if (Today.contains(code) && Yesterday.contains(code)) {
-          val today = Today(code).head
-          val yesterday = Yesterday(code).head
-          val d1 = Array(yesterday._3, yesterday._4, yesterday._5, yesterday._6)
-          val d2 = Array(today._3, today._4, today._5, today._6)
-          utils.Features(code, utils.yesterday, Array(checkA(d1, d2), checkB(d1, d2)))
-        }
-        else {
-          utils.Features("-1", "", Array())
-        }
-    }.filter(_.code != "-1").toList.grouped(GlobalConfig.BatchSize)
-
-  }
-
   def checkA(day1: Array[Float], day2: Array[Float]): Int = {
     //compare d+1 & d+2
     if (day1(0) * amp >= day2(1))
@@ -77,13 +56,10 @@ class Labels {
       fall
   }
 
-  def querybydate(date: String): Query0[(String, String, Float, Float, Float, Float)] =
-    sql"select code,date,op,mx,mn,clse from raw where date = $date ".query[(String, String, Float, Float, Float, Float)]
-
-  def DataBaseLabel(BatchSize: Int = GlobalConfig.BatchSize) = {
+  def DataBaseLabel: Iterable[Features] = {
     val la = LabelA()
     val lb = LabelB()
-    la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key)))).toList.grouped(BatchSize)
+    la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key))))
   }
 
   case class rawlabel(date: String, data: Array[Float])

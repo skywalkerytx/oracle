@@ -7,11 +7,9 @@ import doobie.imports._
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
-import utils.Key
-import utils.codes
-import utils.dates
+import utils.{Features, Key, codes, dates}
 
-import scala.collection.immutable.Seq
+import scala.collection.immutable.{Iterable, Seq}
 
 class Vectorlize {
 
@@ -80,10 +78,10 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def DataBaseVector(BatchSize: Int = GlobalConfig.BatchSize) = DataVector.map {
+  def DataBaseVector(BatchSize: Int = GlobalConfig.BatchSize): Iterable[Features] = DataVector.map {
     vector =>
       utils.Features(vector._1._1, vector._1._2, vector._2)
-  }.toList.grouped(BatchSize)
+  }
 
   def DataVector: Map[(String, String), Array[Float]] = {
     val xa = utils.GetDriverManagerTransactor
@@ -182,55 +180,6 @@ class Vectorlize {
                  psy,psyma,rsi1,rsi2,rsi3,zhenfu,volratio
        from
         raw
-      """.query[Raw]
-  }
-
-  def DeltaToday: Iterator[List[utils.Features]] = {
-    val xa = utils.GetDriverManagerTransactor
-    val date = utils.today
-    val index: Array[Float] = IndexByDate(date).list.
-      transact(xa).unsafePerformSync.
-      flatMap(x => x.toList).toArray
-    val concept = ConceptByDate(date).list.
-      transact(xa).unsafePerformSync.
-      flatMap(x => x.toList).toArray
-    val mapping = GetMapping
-    RawByDate(date).list.transact(xa).unsafePerformSync.par.map {
-      raw =>
-        utils.Features(
-          raw.code, raw.date,
-          Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
-            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
-            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
-            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
-            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
-          )
-            ++ index
-            ++ concept
-            ++ mapping(Key(raw.code, raw.date))
-        )
-    }.toList.grouped(GlobalConfig.BatchSize)
-  }
-
-  def RawByDate(date: String = utils.today): Query0[Raw] = {
-    sql"""
-       select
-        code,date,
-                 op,mx,mn,clse,
-                 aft,bfe,amp,vol,
-                 market,market_exchange,
-                 on_board,total,
-                 zt,dt,
-                 shiyinlv,shixiaolv,shixianlv,shijinglv,
-                 ma5,ma10,ma20,ma30,ma60,
-                 macddif,macddea,macdmacd,
-                 k,d,j,
-                 berlinmid,berlinup,berlindown,
-                 psy,psyma,rsi1,rsi2,rsi3,zhenfu,volratio
-       from
-        raw
-       where
-        date = $date
       """.query[Raw]
   }
 

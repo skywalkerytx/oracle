@@ -9,7 +9,11 @@ import Scalaz._
 import scalaz.concurrent.Task
 import scala.language.postfixOps
 import doobie.contrib.postgresql.pgtypes._
+import doobie.syntax.string.Builder
+import org.postgresql.util.PSQLException
 import utils.Features
+
+import scala.collection.immutable.Iterable
 
 
 /**
@@ -19,41 +23,19 @@ import utils.Features
 
 object Main {
 
-  def playground() = {
-    import doobie.imports._
-
-    import scalaz._
-    import Scalaz._
-    import scalaz.concurrent.Task
-
-    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-
-    import xa.yolo._
-    sql"""
-       select
-       industry,
-       concept,
-       area,
-       macross,
-       macdcross,
-       kdjcross from raw
-
-
-       """.query[(String, String, String, String, String, String)]
-      .quick
-      .unsafePerformSync
-
-
-    val t = (1, 2, 3)
-
-
-  }
-
 
   def main(args: Array[String]): Unit = {
     DailyUpdate(true)
+  }
 
-
+  def DailyQuery(tablename:String,Feature:Features) = {
+    val query =
+      s"""
+        INSERT INTO
+        ${tablename} (code,date,vector)
+        VALUES(?,?,?)
+      """
+    Update[Features](query).toUpdate0(Feature)
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false) = {
@@ -69,58 +51,40 @@ object Main {
       zip.ReadAll
       println("zip readed")
     }
-
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
-      val vec = new Vectorlize().GenMapping.DeltaToday // code date vector
-      println("vector generated")
-      vec.foreach {
-        batch =>
+      val vec = new Vectorlize().GenMapping.DataBaseVector()
+      vec.foreach{
+        vector=>
           try {
-            DailyQuery(batch, "vector").transact(xa).unsafePerformSync
-
+            DailyQuery("vector",vector).run.transact(xa).unsafePerformSync
           }
           catch {
-            case ex: java.sql.BatchUpdateException => {
-              val eex = ex.getNextException
-              if (!eex.getMessage.contains("duplicate key")) {
-                println("excetion when adding feature to database:")
-                println(eex.getMessage)
-                System.exit(2)
+            case ex:PSQLException =>
+              if (!ex.getMessage.contains("duplicate key value violates unique constraint")) {
+                println(ex.getMessage)
+                println("Vector Error at:")
+                println("    "+vector.code,vector.date)
               }
-            }
           }
       }
-      val label: Iterator[List[Features]] = new Labels().DeltaToday
-      println("label generated")
-      label.foreach {
-        batch =>
+      val labels = new Labels().DataBaseLabel
+      labels.foreach{
+        label=>
           try {
-            DailyQuery(batch, "label").transact(xa).unsafePerformSync
+            DailyQuery("label",label).run.transact(xa).unsafePerformSync
           }
           catch {
-            case ex: java.sql.BatchUpdateException => {
-              val eex = ex.getNextException
-              if (!eex.getMessage.contains("duplicate key")) {
-                println("excetion when adding label to database:")
-                println(eex.getMessage)
-                System.exit(2)
+            case ex:PSQLException =>
+              if (!ex.getMessage.contains("duplicate key value violates unique constraint")) {
+                println(ex.getMessage)
+                println("Label Error at:")
+                println("    "+label.code,label.date)
               }
-            }
           }
       }
     }
+
   }
 
-  def DailyQuery(data: List[utils.Features], table: String) = {
-    val sql =
-      """
-        INSERT INTO """ +
-        table +
-        """
-         (code,date,vector)
-          VALUES(?,?,?)
-      """
-    Update[utils.Features](sql).updateMany(data)
-  }
 }
