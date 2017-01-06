@@ -77,6 +77,11 @@ class Vectorlize {
     (r2, r1)
   }
 
+  def DataBaseVector = DataVector.map {
+    vector =>
+      utils.Features(vector._1._1, vector._1._2, vector._2)
+  }.toList
+
   def DataVector: Map[(String, String), Array[Float]] = {
     val xa = utils.GetDriverManagerTransactor
     val index: Map[String, Array[Float]] = GetIndex

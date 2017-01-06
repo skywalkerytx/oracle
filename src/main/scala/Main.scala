@@ -51,7 +51,6 @@ object Main {
 
 
   def main(args: Array[String]): Unit = {
-
     DailyUpdate(true)
 
   }
@@ -69,17 +68,13 @@ object Main {
       zip.ReadAll
       println("zip readed")
     }
-    val vec: Map[(String, String), Array[Float]] = new Vectorlize().GenMapping.DataVector // code date vector
-    val label = new Labels().DataBaseLabel
+
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
       try {
-
-        DailyQuery(vec.map {
-          vector =>
-            utils.Features(vector._1._1, vector._1._2, vector._2)
-        }.toList, "vector").transact(xa).unsafePerformSync
-        println("here we go")
+        val vec = new Vectorlize().GenMapping.DataBaseVector // code date vector
+        println("vector generated")
+        DailyQuery(vec, "vector").transact(xa).unsafePerformSync
       }
       catch {
         case ex: java.sql.BatchUpdateException => {
@@ -92,6 +87,8 @@ object Main {
         }
       }
       try {
+        val label = new Labels().DataBaseLabel
+        println("label generated")
         DailyQuery(label, "label").transact(xa).unsafePerformSync
       }
       catch {
@@ -105,7 +102,6 @@ object Main {
         }
       }
     }
-    (vec, label)
   }
 
   def DailyQuery(data: List[utils.Features], table: String) = {
