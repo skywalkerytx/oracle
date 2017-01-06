@@ -72,7 +72,8 @@ object Main {
     if (SavetoDatabase) {
       val xa = utils.GetDriverManagerTransactor
       val vec = new Vectorlize().GenMapping.DataBaseVector() // code date vector
-        println("vector generated")
+      println(vec.toList.last.last.date)
+      println("vector generated")
       vec.foreach {
         batch =>
           try {
