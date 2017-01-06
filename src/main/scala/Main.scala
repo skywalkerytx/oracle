@@ -11,6 +11,7 @@ import scala.language.postfixOps
 import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 import doobie.syntax.string.Builder
+import org.apache.log4j.BasicConfigurator
 import org.postgresql.util.PSQLException
 import utils.Features
 
@@ -26,6 +27,7 @@ object Main {
 
 
   def main(args: Array[String]): Unit = {
+    BasicConfigurator.configure();
     DailyUpdate(true)
     //Playground.DailyUpdate(true)
   }
@@ -44,17 +46,46 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-      val vec = new Vectorlize().GenMapping.DataBaseVector().par
+      println("sv")
+      val vec = new Vectorlize()
+        //.GenMapping
+        .DataBaseVector()
+      println("endsv")
       vec.foreach{
         vector=>
-          Insert(DailyQuery("vector", vector))
+          Insert("vector", vector)
       }
-      val labels = new Labels().DataBaseLabel.par
+      val labels = new Labels().DataBaseLabel
       labels.foreach{
         label=>
-          Insert(DailyQuery("label", label))
+          Insert("label", label)
       }
     }
+  }
+
+  def Insert(tablename: String, Feature: Features) = {
+    val query: ConnectionIO[Features] = DailyQuery(tablename, Feature)
+    val xa = utils.GetDriverManagerTransactor
+    query.attemptSomeSqlState {
+      case UNIQUE_VIOLATION =>
+    }.transact(xa).unsafePerformSync
+    /*
+    val taskunit = for {
+      xa <- utils.GetHikariTransactor
+      a <- query.transact(xa).attemptSomeSqlState {
+        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
+      }.
+      ensuring(xa.shutdown)
+    } yield a
+    try {
+      taskunit.unsafePerformSync
+    }
+    catch {
+      case ex:Throwable =>
+        println(ex.getMessage)
+        println(tablename,Feature.code,Feature.date,Feature.vector.length)
+        System.exit(5)
+    }*/
   }
 
   def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
@@ -65,16 +96,6 @@ object Main {
         VALUES(?,?,?)
       """
     Update[Features](query).toUpdate0(Feature).withUniqueGeneratedKeys("code", "date")
-  }
-
-  def Insert(query: ConnectionIO[Features]) = {
-    val taskunit = for {
-      xa <- utils.GetHikariTransactor
-      a <- query.transact(xa).attemptSomeSqlState {
-        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
-      }.ensuring(xa.shutdown)
-    } yield a
-    taskunit.unsafePerformSync
   }
 
 }
