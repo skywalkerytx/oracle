@@ -52,12 +52,13 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-      val xa = utils.GetDriverManagerTransactor
-      val vec = new Vectorlize().GenMapping.DataBaseVector()
+
+      val vec = new Vectorlize().GenMapping.DataBaseVector().par
       vec.foreach{
+        val xa = utils.GetDriverManagerTransactor
         vector=>
           try {
-            DailyQuery("vector",vector).run.transact(xa).unsafePerformSync
+            DailyQuery("vector",vector).run.transact(xa).unsafePerformAsync _
           }
           catch {
             case ex:PSQLException =>
@@ -68,11 +69,12 @@ object Main {
               }
           }
       }
-      val labels = new Labels().DataBaseLabel
+      val labels = new Labels().DataBaseLabel.par
       labels.foreach{
         label=>
+          val xa = utils.GetDriverManagerTransactor
           try {
-            DailyQuery("label",label).run.transact(xa).unsafePerformSync
+            DailyQuery("label",label).run.transact(xa).unsafePerformAsync _
           }
           catch {
             case ex:PSQLException =>
