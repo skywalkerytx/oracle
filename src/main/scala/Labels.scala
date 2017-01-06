@@ -48,12 +48,17 @@ class Labels {
     val codes = utils.codes
     codes.par.map {
       code =>
-        val today = Today(code).head
-        val yesterday = Yesterday(code).head
-        val d1 = Array(yesterday._3, yesterday._4, yesterday._5, yesterday._6)
-        val d2 = Array(today._3, today._4, today._5, today._6)
-        utils.Features(code, utils.yesterday, Array(checkA(d1, d2), checkB(d1, d2)))
-    }.toList.grouped(GlobalConfig.BatchSize)
+        if (Today.contains(code) && Yesterday.contains(code)) {
+          val today = Today(code).head
+          val yesterday = Yesterday(code).head
+          val d1 = Array(yesterday._3, yesterday._4, yesterday._5, yesterday._6)
+          val d2 = Array(today._3, today._4, today._5, today._6)
+          utils.Features(code, utils.yesterday, Array(checkA(d1, d2), checkB(d1, d2)))
+        }
+        else {
+          utils.Features("-1", "", Array())
+        }
+    }.filter(_.code != "-1").toList.grouped(GlobalConfig.BatchSize)
 
   }
 
