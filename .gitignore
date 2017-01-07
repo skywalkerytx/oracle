@@ -1,0 +1,6 @@
+*
+!*.scala
+!*.py
+!*.sbt
+!.gitignore
+!.sql
