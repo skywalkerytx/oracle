@@ -1,5 +1,4 @@
-import ml.dmlc.mxnet._
-import ml.dmlc.mxnet.optimizer.SGD
+
 
 
 import java.io._
@@ -24,7 +23,10 @@ import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
   * Created by nova on 17-1-1.
   */
 object Playground {
+  /*
   def dl4jground = {
+    import ml.dmlc.mxnet._
+    import ml.dmlc.mxnet.optimizer.SGD
     val data = Symbol.Variable("data")
     val fc1 = Symbol.FullyConnected(name = "fc1")()(Map("data" -> data, "num_hidden" -> 128))
     val act1 = Symbol.Activation(name = "relu1")()(Map("data" -> fc1, "act_type" -> "relu"))
@@ -95,54 +97,8 @@ object Playground {
     println(s"Final accuracy = $acc")
 
   }
+*/
 
-  def DailyUpdate(SavetoDatabase: Boolean = false) = {
-    if (SavetoDatabase) {
-      val vec = new Vectorlize().GenMapping.DataBaseVector.par
-      vec.foreach {
-        vector =>
-          Insert(DailyQuery("vector", vector))
-      }
-      val labels = new Labels().DataBaseLabel.par
-      labels.foreach {
-        label =>
-          Insert(DailyQuery("label", label))
-      }
-    }
-  }
 
-  def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
-    val query =
-      s"""
-        INSERT INTO
-        ${tablename} (code,date,vector)
-        VALUES(?,?,?)
-      """
-    Update[Features](query).toUpdate0(Feature).withUniqueGeneratedKeys("code", "date")
-  }
 
-  def Insert(query: ConnectionIO[Features]) = {
-    val taskunit = for {
-      xa <- utils.GetHikariTransactor
-      a <- query.transact(xa).attemptSomeSqlState {
-        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
-      }.ensuring(xa.shutdown)
-    } yield a
-    taskunit.unsafePerformSync
-  }
-
-  def hikariground = {
-    (0 to 2000000).par.foreach {
-      blah =>
-        val q = sql"select 42 from raw limit 1".query[Int].unique
-        val p: Task[Int] = for {
-          xa <- HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "") //utils.GetHikariTransactor
-          _ <- xa.configure{
-            hx =>
-              Task.delay(hx.setMaximumPoolSize(65535))
-          }
-          a <- q.transact(xa) ensuring xa.shutdown
-        } yield a
-    }
-  }
 }

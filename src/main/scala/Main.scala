@@ -2,7 +2,8 @@ import java.io._
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import doobie.imports._
+import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.imports.{ConnectionIO, _}
 
 import scalaz._
 import Scalaz._
@@ -10,13 +11,9 @@ import scalaz.concurrent.Task
 import scala.language.postfixOps
 import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
-import doobie.syntax.string.Builder
 import org.apache.log4j.BasicConfigurator
-import org.postgresql.util.PSQLException
-import utils.Features
+import shapeless.HNil
 
-import scala.collection.immutable.Iterable
-import scala.collection.parallel.ParIterable
 
 
 /**
@@ -26,22 +23,43 @@ import scala.collection.parallel.ParIterable
 
 object Main {
 
+  //case class Features(code: String, date: String, vector: Array[Float])
+  import utils.Features
 
   def main(args: Array[String]): Unit = {
-    utils.save(new Vectorlize().DataBaseVector,"data/vec.obj")
-    utils.save(new Labels().DataBaseLabel,"data/label.obj")
-    /*
-    val vec = utils.load("data/vec.obj").asInstanceOf[scala.collection.parallel.ParIterable[Features]]
-    val labels = utils.load("data/label.obj").asInstanceOf[ParIterable[Features]]
-    vec.foreach {
-      feature =>
-        Insert("vector",feature)
+    BasicConfigurator.configure()
+    val save = true
+    val load = true
+    val insert = true
+    if (save) {
+      utils.save(new Vectorlize().DataBaseVector,"data/vec.obj")
+      utils.save(new Labels().DataBaseLabel,"data/label.obj")
     }
-    labels.foreach{
-      label =>
-        Insert("label",label)
+    if (load) {
+      println("now loading...")
+      val vec = utils.load("data/vec.obj").asInstanceOf[Array[Features]].par
+      val labels = utils.load("data/label.obj").asInstanceOf[Array[Features]].par
+      println("loading completed")
+      if (insert) {
+        val xa:HikariTransactor[Task] = utils.GetHikariTransactor
+        xa.configure(hx=>Task(hx setMaximumPoolSize 65535 )).unsafePerformSync
+        println("now inserting vector")
+        vec.foreach {
+          feature =>
+            VectorQuery(feature)
+            //DailyQuery("vector",feature)
+              .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
+        }
+        println("now inserting label")
+        labels.foreach{
+          label =>
+            LabelQuery(label)
+            //DailyQuery("label",label)
+              .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
+        }
+        xa.shutdown.unsafePerformSync
     }
-    */
+    }
     //DailyUpdate(true)
     //Playground.DailyUpdate(true)
   }
@@ -63,29 +81,21 @@ object Main {
     }
   }
 
-  def Insert(tablename: String, Feature: Features) = {
-    val query = DailyQuery(tablename,Feature)
-    val taskunit = for {
-      xa <- utils.GetHikariTransactor
-      _ <- xa.configure{
-        hx =>
-          Task.delay(hx.setMaximumPoolSize(65535))
-      }
-      a <- query.transact(xa).attemptSomeSqlState {
-        case UNIQUE_VIOLATION => "Duplicate key, I really don't care about this"
-      }.
-      ensuring(xa.shutdown)
-    } yield a
-    taskunit.unsafePerformSync
+
+  def DailyQuery(table:String,feature:Features):ConnectionIO[Int] = {
+    val query ="INSERT INTO " +table+" (code,date,vector) VALUES(?,?,?)"
+
+    Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date","")
   }
-  def DailyQuery(tablename: String, Feature: Features): ConnectionIO[Features] = {
-    val query =
-      s"""
-        INSERT INTO
-        ${tablename} (code,date,vector)
-        VALUES(?,?,?)
-      """
-    Update[Features](query).toUpdate0(Feature).withUniqueGeneratedKeys("code", "date")
+
+  def VectorQuery(feature:Features):ConnectionIO[Int] = {
+    val query ="INSERT INTO vector(code,date,vector) VALUES(?,?,?)"
+    Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date")
+  }
+
+  def LabelQuery(feature:Features):ConnectionIO[Int] = {
+    val query ="INSERT INTO label(code,date,vector) VALUES(?,?,?)"
+    Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date")
   }
 
 }

@@ -78,10 +78,10 @@ class Vectorlize {
     (r2, r1)
   }
 
-  def DataBaseVector: scala.collection.parallel.ParIterable[Features] = DataVector.map {
+  def DataBaseVector: Array[Features] = DataVector.map {
     vector =>
       utils.Features(vector._1._1, vector._1._2, vector._2)
-  }.par
+  }.toArray
 
   def DataVector: Map[(String, String), Array[Float]] = {
     val xa = utils.GetDriverManagerTransactor

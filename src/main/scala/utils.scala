@@ -63,7 +63,7 @@ object utils {
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
 
-  def GetHikariTransactor = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+  def GetHikariTransactor: HikariTransactor[Task] = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth").unsafePerformSync
 
   def save(obj: Any, path: String) = {
     val oos = new ObjectOutputStream(new FileOutputStream(path))
