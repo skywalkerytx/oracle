@@ -13,11 +13,11 @@ class Labels {
   val amp = 1.03
   val rise = 1
   val fall = -1
+  val xa = utils.GetHikariTransactor
 
   def LabelA(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkA, delta)
 
   def GenLabel(CheckFunction: (Array[Float], Array[Float]) => Int, delta: Int): Map[Key, Int] = {
-    val xa = utils.GetDriverManagerTransactor
     val raw = query.list.transact(xa).unsafePerformSync.groupBy {
       _._1
     }

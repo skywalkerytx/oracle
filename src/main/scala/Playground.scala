@@ -1,5 +1,6 @@
 import ml.dmlc.mxnet._
 import ml.dmlc.mxnet.optimizer.SGD
+
 /**
   * Created by nova on 17-1-1.
   */
@@ -33,7 +34,6 @@ object Playground {
       "batch_size" -> "50",
       "shuffle" -> "1",
       "flat" -> "0", "silent" -> "0"))
-
 
 
     val model = FeedForward.newBuilder(mlp)
@@ -77,8 +77,6 @@ object Playground {
     println(s"Final accuracy = $acc")
 
   }
-
-
 
 
 }

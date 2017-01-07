@@ -11,10 +11,13 @@ import utils.{Features, Key, codes, dates}
 
 import scala.collection.immutable.{Iterable, Seq}
 
+import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+
 class Vectorlize {
 
   val splitchar = '；'
   val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
+  val xa = utils.GetHikariTransactor
 
   val Queries: Map[String, Query0[String]] =
     Map(
@@ -28,63 +31,12 @@ class Vectorlize {
 
   val all = 1000000000
 
-
-  def GenMapping: Vectorlize = {
-    var gid = 0
-    toMap.foreach {
-      col =>
-        val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-        import xa.yolo._
-        val results: List[MappingClass] = Queries(col).list.transact(xa).unsafePerformSync.
-          flatMap(_.split(splitchar)).distinct.map(str => MappingClass(str, col))
-        try {
-          InsertInto(results).transact(xa).unsafePerformSync
-        }
-        catch {
-          case ex: java.sql.BatchUpdateException => {
-            val eex = ex.getNextException
-            if (!eex.getMessage.contains("duplicate key"))
-              System.exit(2)
-          }
-        }
-        for (result <- results) {
-          UpdateGid(result.str, result.cat, gid).run.transact(xa).unsafePerformSync
-          gid = gid + 1
-        }
-    }
-    return this
-  }
-
-  def UpdateGid(str: String, cat: String, gid: Int): Update0 = {
-    sql"""
-          UPDATE mapping
-          SET
-            gid = $gid
-          WHERE
-            str = $str AND cat = $cat
-      """.update
-  }
-
-  def InsertInto(data: List[MappingClass]) = {
-    val query = "insert into Mapping(str,cat) values(?,?)"
-    Update[MappingClass](query).updateMany(data)
-  }
-
-  def GetCount() = {
-    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    val q1: Query0[(Int, String)] = sql"select count(1),cat from mapping group by cat ".query[(Int, String)]
-    val r1 = q1.list.transact(xa).unsafePerformSync.take(toMap.length)
-    val r2 = r1.map(_._1).sum
-    (r2, r1)
-  }
-
   def DataBaseVector: Array[Features] = DataVector.map {
     vector =>
       utils.Features(vector._1._1, vector._1._2, vector._2)
   }.toArray
 
   def DataVector: Map[(String, String), Array[Float]] = {
-    val xa = utils.GetDriverManagerTransactor
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping
     val concept: Map[String, Array[Float]] = GetConcept
@@ -108,7 +60,6 @@ class Vectorlize {
   def GetConcept: Map[String, Array[Float]] = {
     dates.par.map {
       date =>
-        val xa = utils.GetDriverManagerTransactor
         (date,
           ConceptByDate(date).list.transact(xa).unsafePerformSync.
             flatMap(x => x.toList).toArray
@@ -123,7 +74,6 @@ class Vectorlize {
   def GetIndex(): Map[String, Array[Float]] = {
     dates.par.map {
       date =>
-        val xa = utils.GetDriverManagerTransactor
         (date,
           IndexByDate(date).list.
             transact(xa).unsafePerformSync.
@@ -135,24 +85,43 @@ class Vectorlize {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
 
+
   def GetMapping(): Map[Key, Array[Float]] = {
-    val xa = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+    GenMapping
     val mappings: Map[(String, String), Int] = Mapping.list.transact(xa).unsafePerformSync.map { a => ((a._1, a._2), a._3) }.toMap
     RawMap.list.transact(xa).unsafePerformSync.map {
       rmc =>
         val key = Key(rmc.code, rmc.date)
-        val mappingarray = new Array[Float](277)
+        val mappingarray = new Array[Float](mappings.length)
         val tomap = rmc.productIterator.toList
         //val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
         for (i <- 2 until tomap.length) {
           val cat = toMap(i - 2)
           tomap(i).asInstanceOf[String].split(splitchar).foreach {
             str =>
-              mappingarray(mappings(str, cat)) = 1
+              mappingarray(mappings(str, cat) - 1) = 1
           }
         }
         (key, mappingarray)
     }.toMap
+  }
+
+  def GenMapping: Vectorlize = {
+    var gid = 0
+    toMap.foreach {
+      col =>
+        val results: List[MappingClass] = Queries(col).list.transact(xa).unsafePerformSync.
+          flatMap(_.split(splitchar)).distinct.map(str => MappingClass(str, col))
+        InsertInto(results).transact(xa)
+          .attemptSomeSqlState { case UNIQUE_VIOLATION => }
+          .unsafePerformSync
+    }
+    this
+  }
+
+  def InsertInto(data: List[MappingClass]) = {
+    val query = "insert into Mapping(str,cat) values(?,?)"
+    Update[MappingClass](query).updateMany(data)
   }
 
   def Mapping: Query0[(String, String, Int)] = {

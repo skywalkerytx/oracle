@@ -66,7 +66,7 @@ PRIMARY KEY (index_code,index_date)
 CREATE TABLE IF NOT EXISTS Mapping(
 str varchar(64),
 cat varchar(12),
-gid int,
+gid serial,
 PRIMARY KEY(cat,str)
 );
 

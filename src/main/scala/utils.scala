@@ -2,6 +2,7 @@ import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
+import javax.mail.{Folder, Store}
 
 import doobie.contrib.hikari.hikaritransactor.HikariTransactor
 import doobie.imports._
@@ -9,6 +10,7 @@ import doobie.imports._
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
+
 /**
   * Created by nova on 16-12-20.
   */
@@ -53,7 +55,7 @@ object utils {
       new ZipFile(filename)
     }
     catch {
-      case ex: ZipException =>
+      case ex: Throwable =>
         return false
     }
     zip.close
@@ -70,7 +72,7 @@ object utils {
     oos.writeObject(obj)
   }
 
-  def load(path: String):Any = {
+  def load(path: String): Any = {
     val ois = new ObjectInputStream(new FileInputStream(path))
     val obj = ois.readObject()
     ois.close()
@@ -108,4 +110,7 @@ object utils {
   case class Key(code: String, date: String)
 
   case class Features(code: String, date: String, vector: Array[Float])
+
+  case class EmailProp(store: Store, inbox: Folder)
+
 }
