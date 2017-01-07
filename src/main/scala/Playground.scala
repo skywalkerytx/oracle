@@ -1,32 +1,12 @@
-
-
-
-import java.io._
-import java.text.SimpleDateFormat
-import java.util.Calendar
-
-import doobie.imports._
-
-import scalaz._
-import Scalaz._
-import scalaz.concurrent.Task
-import scala.language.postfixOps
-import doobie.contrib.postgresql.pgtypes._
-import org.postgresql.util.PSQLException
-import utils.Features
-import scala.language.postfixOps
-
-
-import doobie.contrib.hikari.hikaritransactor._
-import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+import ml.dmlc.mxnet._
+import ml.dmlc.mxnet.optimizer.SGD
 /**
   * Created by nova on 17-1-1.
   */
 object Playground {
-  /*
-  def dl4jground = {
-    import ml.dmlc.mxnet._
-    import ml.dmlc.mxnet.optimizer.SGD
+
+  def mxnetground = {
+
     val data = Symbol.Variable("data")
     val fc1 = Symbol.FullyConnected(name = "fc1")()(Map("data" -> data, "num_hidden" -> 128))
     val act1 = Symbol.Activation(name = "relu1")()(Map("data" -> fc1, "act_type" -> "relu"))
@@ -97,7 +77,7 @@ object Playground {
     println(s"Final accuracy = $acc")
 
   }
-*/
+
 
 
 

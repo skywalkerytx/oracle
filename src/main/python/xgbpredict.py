@@ -1,10 +1,9 @@
 import xgboost as xgb
-import numpy as np
 
 import pyut
 
 if __name__ == '__main__':
-    codes = pyut.codes
-    dates = pyut.dates
-    
-
+    (con, cur) = pyut.newconn()
+    cur.execute('select code,date,vector from vector limit 10')
+    res = cur.fetchall()
+    map(lambda x:print(x),res)
