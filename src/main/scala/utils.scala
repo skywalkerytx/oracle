@@ -70,9 +70,11 @@ object utils {
     oos.writeObject(obj)
   }
 
-  def load(path: String) = {
+  def load(path: String):Any = {
     val ois = new ObjectInputStream(new FileInputStream(path))
-    ois.readObject()
+    val obj = ois.readObject()
+    ois.close()
+    return obj
   }
 
   case class Raw(code: String, date: String,

@@ -28,39 +28,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
-    val save = true
-    val load = true
-    val insert = true
-    if (save) {
-      utils.save(new Vectorlize().DataBaseVector,"data/vec.obj")
-      utils.save(new Labels().DataBaseLabel,"data/label.obj")
-    }
-    if (load) {
-      println("now loading...")
-      val vec = utils.load("data/vec.obj").asInstanceOf[Array[Features]].par
-      val labels = utils.load("data/label.obj").asInstanceOf[Array[Features]].par
-      println("loading completed")
-      if (insert) {
-        val xa:HikariTransactor[Task] = utils.GetHikariTransactor
-        xa.configure(hx=>Task(hx setMaximumPoolSize 65535 )).unsafePerformSync
-        println("now inserting vector")
-        vec.foreach {
-          feature =>
-            VectorQuery(feature)
-            //DailyQuery("vector",feature)
-              .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
-        }
-        println("now inserting label")
-        labels.foreach{
-          label =>
-            LabelQuery(label)
-            //DailyQuery("label",label)
-              .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
-        }
-        xa.shutdown.unsafePerformSync
-    }
-    }
-    //DailyUpdate(true)
+    DailyUpdate(true)
     //Playground.DailyUpdate(true)
   }
 
@@ -77,8 +45,28 @@ object Main {
       zip.ReadAll
       println("zip readed")
     }
+    val vec = new Vectorlize().GenMapping.DataBaseVector
+    val labels = new Labels().DataBaseLabel
     if (SavetoDatabase) {
+      val xa:HikariTransactor[Task] = utils.GetHikariTransactor
+      xa.configure(hx=>Task(hx setMaximumPoolSize 64 )).unsafePerformSync
+      println("now inserting vector")
+      vec.foreach {
+        feature =>
+          //VectorQuery(feature)
+            DailyQuery("vector",feature)
+            .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
+      }
+      println("now inserting label")
+      labels.foreach{
+        label =>
+          //LabelQuery(label)
+            DailyQuery("label",label)
+            .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
+      }
+      xa.shutdown.unsafePerformSync
     }
+    (vec,labels)
   }
 
 
