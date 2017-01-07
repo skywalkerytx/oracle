@@ -1,5 +1,6 @@
 import psycopg2
 import numpy as np
+import xgboost as xgb
 
 
 def newconn():
@@ -26,9 +27,20 @@ def getdate():
 
 codes = getcode()
 
+dates = getdate()
 
+def sourcefromdb(testsize=0.2,random_state=42):
+     vectors, labels = pyut.data(labelnum=0)
 
+     tvector, evector, tlabel, elabel = train_test_split(vectors, labels, test_size=testsize, random_state=random_state)
+     tm = xgb.DMatrix(tvector, label=tlabel)
+     em = xgb.DMatrix(evector, label=elabel)
+     return tm,em
 
+def sourcefromfile():
+    tm = xgb.DMatrix('data/xgb/trainingdata.matrix')
+    em = xgb.DMatrix('data/xgb/testingdata.matrix')
+    return tm,em
 
 def data(datasize = None, labelnum = 0):
 

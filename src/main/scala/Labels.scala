@@ -12,7 +12,7 @@ class Labels {
 
   val amp = 1.03
   val rise = 1
-  val fall = -1
+  val fall = 0
   val xa = utils.GetHikariTransactor
 
   def LabelA(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkA, delta)
