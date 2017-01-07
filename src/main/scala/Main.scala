@@ -13,7 +13,7 @@ import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 import org.apache.log4j.BasicConfigurator
 import shapeless.HNil
-
+import utils.Features
 
 
 /**
@@ -23,13 +23,9 @@ import shapeless.HNil
 
 object Main {
 
-  //case class Features(code: String, date: String, vector: Array[Float])
-  import utils.Features
-
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
     DailyUpdate(true)
-    //Playground.DailyUpdate(true)
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false) = {
@@ -60,8 +56,7 @@ object Main {
       println("now inserting label")
       labels.foreach{
         label =>
-          //LabelQuery(label)
-            DailyQuery("label",label)
+          DailyQuery("label",label)
             .attemptSomeSqlState{case UNIQUE_VIOLATION=>}.transact(xa).unsafePerformSync
       }
       xa.shutdown.unsafePerformSync
@@ -74,16 +69,6 @@ object Main {
     val query ="INSERT INTO " +table+" (code,date,vector) VALUES(?,?,?)"
 
     Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date","")
-  }
-
-  def VectorQuery(feature:Features):ConnectionIO[Int] = {
-    val query ="INSERT INTO vector(code,date,vector) VALUES(?,?,?)"
-    Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date")
-  }
-
-  def LabelQuery(feature:Features):ConnectionIO[Int] = {
-    val query ="INSERT INTO label(code,date,vector) VALUES(?,?,?)"
-    Update[Features](query).toUpdate0(feature).run//.withUniqueGeneratedKeys("code","date")
   }
 
 }

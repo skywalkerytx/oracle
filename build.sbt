@@ -26,8 +26,8 @@ libraryDependencies += "org.slf4j" % "slf4j-log4j12" % "1.7.22"
 //libraryDependencies += "org.nd4j" % "nd4j-cuda-8.0" % "0.7.2"
 //libraryDependencies += "org.datavec" % "datavec-api" % "0.7.2"
 
-//resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository" //mxnet cache
-//libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT" //seems it was forced to run on cpu, give up
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository" //mxnet cache
+libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT" //seems it was forced to run on cpu, give up
 
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
