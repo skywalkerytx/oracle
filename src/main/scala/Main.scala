@@ -25,11 +25,11 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
-    DailyUpdate(SavetoDatabase = true,SaveLabel = true)
-    Playground.LabelCheck
+    DailyUpdate(SavetoDatabase = true)
+    //Playground.LabelCheck
   }
 
-  def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = false,SaveLabel:Boolean = false, UpdateAll: Boolean = false) = {
+  def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true, UpdateAll: Boolean = false) = {
     val today = Calendar.getInstance
     val ff = new SimpleDateFormat("yyyyMMdd")
     val filename = "data/holo/overview-push-" + ff.format(today.getTime) + ".zip"
