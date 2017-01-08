@@ -25,7 +25,8 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
-    DailyUpdate(SavetoDatabase = true)
+    //DailyUpdate(SavetoDatabase = true)
+    Playground.LabelCheck
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false, UpdateAll: Boolean = false) = {

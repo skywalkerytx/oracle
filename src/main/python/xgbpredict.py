@@ -10,6 +10,7 @@ def param():
     clfparam['subsample'] = 0.5
     return clfparam
 
+bst = xgb.Booster(model_file='xgb.model')
 
 def xgbst():
     tm, em = pyut.sourcefromfile()
@@ -32,24 +33,27 @@ def xgbst():
     print(positive * 100.0 / detected, falsealarm * 100.0 / detected)
     return bst
 
+from datetime import datetime
+
+import numpy as np
+
 def oneround(code):
-    print(code)
-    bst = xgb.Booster(model_file='xgb.model')
+    st = datetime.now()
     detected = 0
     mismatch = 0
     wronglabel = 0
     loss = 0
     wincount = 0
     dates = list(pyut.getdatebycode(code, 'vector'))
-    ld = list(pyut.getdatebycode(code, 'label'))
-    testdata = list(map(lambda date: pyut.vecbycodedate(code, date), ld))
-    for i in range(len(testdata)):
-        pred = bst.predict(xgb.DMatrix(testdata[i]))
+    labels = pyut.labelbycode(code)
+    unlabeled = pyut.unlabeledopmx(code)
+    preds =bst.predict(xgb.DMatrix(pyut.labeledvector(code)))
+    for i in range(len(preds)):
+        pred = preds[i]
         daftt = dates[i + 2]
         dt = dates[i + 1]
-        tormorrow = pyut.vecbycodedate(code, dt)[0][0]
-        dayafter = pyut.vecbycodedate(code, daftt)[0][1]
-        label = pyut.labelbycodedate(code, ld[i])
+        tormorrow, dayafter = unlabeled[i]
+        label = labels[i]
         detected += 1
         if pred > 0.5:
             if label != 1:
@@ -59,14 +63,16 @@ def oneround(code):
                 wincount += 1
         if label == 1 and tormorrow * 1.03 < dayafter:
             wronglabel += 1
+    et = datetime.now()
+    print(code + ' ends. time cost:'+str((et-st).seconds))
     return detected,mismatch,wronglabel,loss,wincount
-    print(code+' ends')
+
 
 def simulation():
 
-    from multiprocessing.pool import Pool
+    from multiprocessing.pool import ThreadPool
     import multiprocessing
-    tp = Pool(multiprocessing.cpu_count())
+    tp = ThreadPool(multiprocessing.cpu_count())
     total = tp.map(oneround,pyut.codes)
     detected = sum(map(lambda x:x[0],total))
     mismatch = sum(map(lambda x:x[1],total))
@@ -87,7 +93,10 @@ if __name__ == '__main__':
     #bst.save_model('xgb.model')
     # load model and data in
     print("start")
-    #simulation()
+    code = 'sz002316'
+    print(pyut.labelbycode(code))
+    simulation()
     #print(pyut.labelbycodedate('sh600027','2016-11-11'))
-    oneround('sh600028')
+    #oneround(code)
+
 

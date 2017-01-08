@@ -1,6 +1,19 @@
 import ml.dmlc.mxnet._
 import ml.dmlc.mxnet.optimizer.SGD
 
+import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.imports.{ConnectionIO, _}
+
+import scalaz._
+import Scalaz._
+import scalaz.concurrent.Task
+import scala.language.postfixOps
+import doobie.contrib.postgresql.pgtypes._
+import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+import org.apache.log4j.BasicConfigurator
+import shapeless.HNil
+
+
 /**
   * Created by nova on 17-1-1.
   */
@@ -79,4 +92,12 @@ object Playground {
   }
 
 
+  def query:Query0[(utils.Key,Int)] = {
+    sql"select code,name,vector[1] from label".query[(utils.Key,Int)]
+  }
+
+  def LabelCheck = {
+    val xa = utils.GetHikariTransactor
+    query.list
+  }
 }
