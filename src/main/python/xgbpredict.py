@@ -33,6 +33,7 @@ def xgbst():
     return bst
 
 def oneround(code):
+    print(code)
     bst = xgb.Booster(model_file='xgb.model')
     detected = 0
     mismatch = 0
@@ -59,7 +60,9 @@ def oneround(code):
         if label == 1 and tormorrow * 1.03 < dayafter:
             wronglabel += 1
     return detected,mismatch,wronglabel,loss,wincount
-def simulation(bst):
+    print(code+' ends')
+
+def simulation():
 
     from multiprocessing.pool import Pool
     import multiprocessing
@@ -83,6 +86,8 @@ if __name__ == '__main__':
     #bst = xgbst()
     #bst.save_model('xgb.model')
     # load model and data in
-    simulation(xgb.Booster(model_file='xgb.model'))
+    print("start")
+    #simulation()
     #print(pyut.labelbycodedate('sh600027','2016-11-11'))
+    oneround('sh600028')
 
