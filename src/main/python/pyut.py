@@ -62,6 +62,13 @@ def sourcefromdb(testsize=0.2, random_state=42):
     em = xgb.DMatrix(evector, label=elabel)
     return tm, em
 
+def sourcefromdbD(testsize=0.2, random_state=42):
+    vectors, labels = data(labelnum=0,table='dvector')
+    tvector, evector, tlabel, elabel = train_test_split(vectors, labels, test_size=testsize, random_state=random_state)
+    tm = xgb.DMatrix(tvector, label=tlabel)
+    em = xgb.DMatrix(evector, label=elabel)
+    return tm, em
+
 
 trainingdatalocation = 'data/xgb/trainingdata.matrix'
 
@@ -79,27 +86,24 @@ def savetofile(tm, em):
     em.save_binary(testingdatalocation)
 
 
-def data(datasize=None, labelnum=0):
+def data(datasize=None, labelnum=0,table = 'vector'):
     all = '''
     SELECT
-        vector.vector,
+        %s.vector,
         label.vector
     FROM
-        vector
+        %s
     INNER JOIN
         label
     ON
-        vector.code = label.code
+        %s.code = label.code
         AND
-        vector.date = label.date
+        %s.date = label.date
     ORDER BY
-        vector.code,vector.date ASC
-    '''
-
+        %s.code,%s.date ASC
+    '''%(table,table,table,table,table,table)
     limited = all + '\n LIMIT %s'
-
     con, cur = poolconn()
-
     if datasize is not None:
         cur.execute(limited, (datasize,))
     else:

@@ -10,8 +10,12 @@ import scalaz.concurrent.Task
 import utils.{Features, Key, codes, dates}
 
 import scala.collection.immutable.{Iterable, Seq}
-
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+
+import scala.collection.parallel.immutable.ParSeq
+
+import breeze.linalg._
+import breeze.numerics._
 
 class Vectorlize {
 
@@ -31,19 +35,41 @@ class Vectorlize {
 
   val all = 1000000000
 
-  def DataBaseVector: Array[Features] = DataVector.map {
-    vector =>
-      utils.Features(vector._1._1, vector._1._2, vector._2)
-  }.toArray
+  def dVector: ParSeq[Features] = {
+    val index = GetIndex
+    val mapping = GetMapping
+    val concept = GetConcept
+    val raw: ParSeq[(Key, DenseVector[Float])] = GetRaw.list.transact(xa).unsafePerformSync.par.map{
+      raw =>
+        (
+          Key(raw.code, raw.date),
+          DenseVector(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
+            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
+            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
+            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
+            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
+          )
+        )
+    }
+    (1 until raw.length).par.map(
+      idx =>
+        Features(raw(idx)._1.code,raw(idx)._1.date,
+          (raw(idx)._2-raw(idx-1)._2).data
+          ++index(raw(idx)._1.date)
+          ++concept(raw(idx)._1.date)
+          ++mapping(raw(idx)._1)
+        )
+    )
+  }
 
-  def DataVector: Map[(String, String), Array[Float]] = {
+  def DataVector: ParSeq[Features] = {
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping
     val concept: Map[String, Array[Float]] = GetConcept
     GetRaw.list.transact(xa).unsafePerformSync.par.map {
       raw =>
-        (
-          (raw.code, raw.date),
+        Features(
+          raw.code, raw.date,
           Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
             raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
             raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
@@ -54,7 +80,7 @@ class Vectorlize {
             ++ concept(raw.date)
             ++ mapping(Key(raw.code, raw.date))
         )
-    }.seq.toMap
+    }
   }
 
   def GetConcept: Map[String, Array[Float]] = {

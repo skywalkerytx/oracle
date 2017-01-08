@@ -17,14 +17,16 @@ libraryDependencies += "joda-time" % "joda-time" % "2.9.6"
 
 
 // https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12
-libraryDependencies += "org.slf4j" % "slf4j-log4j12" % "1.7.22"
+//libraryDependencies += "org.slf4j" % "slf4j-log4j12" % "1.7.22"
 
+libraryDependencies  ++= Seq(
+ "org.scalanlp" %% "breeze" % "0.12",
+ "org.scalanlp" %% "breeze-natives" % "0.12",
 
+ "org.scalanlp" %% "breeze-viz" % "0.12"
+)
 
-//DL4j
-//libraryDependencies += "org.deeplearning4j" % "deeplearning4j-core" % "0.7.2"
-//libraryDependencies += "org.nd4j" % "nd4j-cuda-8.0" % "0.7.2"
-//libraryDependencies += "org.datavec" % "datavec-api" % "0.7.2"
+resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
 resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository" //mxnet cache
 libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT" //seems it was forced to run on cpu, give up

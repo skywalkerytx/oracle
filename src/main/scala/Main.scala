@@ -25,11 +25,12 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
+    //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
     DailyUpdate(SavetoDatabase = true)
-    //Playground.LabelCheck
+    Playground.LabelCheck
   }
 
-  def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true, UpdateAll: Boolean = false) = {
+  def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true,SavedVector:Boolean = true, UpdateAll: Boolean = false) = {
     val today = Calendar.getInstance
     val ff = new SimpleDateFormat("yyyyMMdd")
     val filename = "data/holo/overview-push-" + ff.format(today.getTime) + ".zip"
@@ -44,10 +45,20 @@ object Main {
     }
     if (SavetoDatabase) {
       val xa: HikariTransactor[Task] = utils.GetHikariTransactor
+      val vec = new Vectorlize()
+      val label = new Labels()
+      if (SavedVector) {
+        println("generating dVector")
+        vec.dVector.foreach {
+          feature =>
+            DailyQuery("dvector",feature)
+              .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
+        }
+      }
+
       if (SaveVector) {
         println("now inserting vector")
-        val vec = new Vectorlize().DataBaseVector
-        vec.par.foreach {
+        vec.DataVector.foreach {
           feature =>
             //VectorQuery(feature)
             DailyQuery("vector", feature)
