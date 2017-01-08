@@ -62,7 +62,8 @@ def oneround(code):
 def simulation(bst):
 
     from multiprocessing.pool import Pool
-    tp = Pool(4)
+    import multiprocessing
+    tp = Pool(multiprocessing.cpu_count())
     total = tp.map(oneround,pyut.codes)
     detected = sum(map(lambda x:x[0],total))
     mismatch = sum(map(lambda x:x[1],total))
