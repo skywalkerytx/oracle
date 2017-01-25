@@ -21,7 +21,7 @@ class Vectorlize {
 
   val splitchar = '；'
   val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
-  val xa = utils.GetHikariTransactor
+  val xa = utils.GetHikariTransactor("vectorlize-pool")
 
   val Queries: Map[String, Query0[String]] =
     Map(
@@ -36,10 +36,11 @@ class Vectorlize {
   val all = 1000000000
 
   def dVector: ParSeq[Features] = {
+    GenMapping
     val index = GetIndex
     val mapping = GetMapping
     val concept = GetConcept
-    val raw: ParSeq[(Key, DenseVector[Float])] = GetRaw.list.transact(xa).unsafePerformSync.par.map{
+    val raw= GetRaw.list.transact(xa).unsafePerformSync.par.map{
       raw =>
         (
           Key(raw.code, raw.date),
@@ -50,7 +51,8 @@ class Vectorlize {
             raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
           )
         )
-    }
+    }.toArray
+    println(s"doing D now. :${raw.length}")
     (1 until raw.length).par.map(
       idx =>
         Features(raw(idx)._1.code,raw(idx)._1.date,

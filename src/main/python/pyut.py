@@ -55,20 +55,19 @@ codes = getcode()
 dates = getdate()
 
 
-def sourcefromdb(testsize=0.2, random_state=42):
-    vectors, labels = data(labelnum=0)
-    tvector, evector, tlabel, elabel = train_test_split(vectors, labels, test_size=testsize, random_state=random_state)
+def sourcefromdb(datasize = None,testsize=0.2, random_state=42,table = 'vector'):
+    vectors, labels = data(datasize,table=table)
+    #tvector, evector, tlabel, elabel = train_test_split(vectors, labels, test_size=testsize, random_state=random_state)
+    pos = int(len(vectors)*(1-testsize))
+    tvector = vectors[:pos]
+    evector = vectors[pos:]
+    tlabel = labels[:pos]
+    elabel = labels[pos:]
     tm = xgb.DMatrix(tvector, label=tlabel)
     em = xgb.DMatrix(evector, label=elabel)
+    tm.save_binary(trainingdatalocation)
+    em.save_binary(testingdatalocation)
     return tm, em
-
-def sourcefromdbD(testsize=0.2, random_state=42):
-    vectors, labels = data(labelnum=0,table='dvector')
-    tvector, evector, tlabel, elabel = train_test_split(vectors, labels, test_size=testsize, random_state=random_state)
-    tm = xgb.DMatrix(tvector, label=tlabel)
-    em = xgb.DMatrix(evector, label=elabel)
-    return tm, em
-
 
 trainingdatalocation = 'data/xgb/trainingdata.matrix'
 
@@ -78,6 +77,7 @@ testingdatalocation = 'data/xgb/testingdata.matrix'
 def sourcefromfile():
     tm = xgb.DMatrix(trainingdatalocation)
     em = xgb.DMatrix(testingdatalocation)
+    savetofile(tm,em)
     return tm, em
 
 
@@ -86,11 +86,11 @@ def savetofile(tm, em):
     em.save_binary(testingdatalocation)
 
 
-def data(datasize=None, labelnum=0,table = 'vector'):
+def data(datasize=None, labelnum=1,table = 'vector'):
     all = '''
     SELECT
         %s.vector,
-        label.vector
+        label.vector[%d]
     FROM
         %s
     INNER JOIN
@@ -99,9 +99,11 @@ def data(datasize=None, labelnum=0,table = 'vector'):
         %s.code = label.code
         AND
         %s.date = label.date
+    WHERE
+	%s.date < '2017-01-09'
     ORDER BY
-        %s.code,%s.date ASC
-    '''%(table,table,table,table,table,table)
+        %s.date,%s.code ASC
+    '''%(table,labelnum,table,table,table,table,table,table)
     limited = all + '\n LIMIT %s'
     con, cur = poolconn()
     if datasize is not None:
@@ -110,7 +112,7 @@ def data(datasize=None, labelnum=0,table = 'vector'):
         cur.execute(all)
     res = cur.fetchall()
     dtrain = np.asarray(list(map(lambda x: np.asarray(x[0]), res)))
-    dlabel = np.asarray(list(map(lambda x: x[1][labelnum], res)))
+    dlabel = np.asarray(list(map(lambda x: x[1], res)))
     cur.close()
     pool.putconn(con)
     return dtrain, dlabel

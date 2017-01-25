@@ -65,10 +65,11 @@ object utils {
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
 
-  def GetHikariTransactor: HikariTransactor[Task] = {
+  def GetHikariTransactor(name:String): HikariTransactor[Task] = {
 
     val xa = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth").unsafePerformSync
     xa.configure(hx => Task(hx.setMaximumPoolSize(Runtime.getRuntime().availableProcessors()))).unsafePerformSync
+    xa.configure(hx =>Task(hx.setPoolName(name))).unsafePerformSync
     xa
 }
 

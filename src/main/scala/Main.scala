@@ -14,6 +14,8 @@ import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 import org.apache.log4j.BasicConfigurator
 import shapeless.HNil
 import utils.Features
+import org.joda.time._
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 
 
 /**
@@ -25,17 +27,38 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure()
+
     //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
     DailyUpdate(SavetoDatabase = true)
     Playground.LabelCheck
   }
 
+  def datetofile(s:String) = "data/holo/overview-push-"+s+".zip"
+
+  def ShouldDownload:Boolean = {
+    val today = new DateTime()
+    var detectday = today
+    val latest = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).map(_.toString).sorted.last
+    val fmt = DateTimeFormat.forPattern("yyyyMMdd")
+    while (datetofile(detectday.toString(fmt)) != latest) {
+      if (detectday == today) {
+        if (today.hourOfDay.get>=18)
+          return true
+      }
+      else {
+        if (detectday.dayOfWeek.get()<6) {
+          return true
+        }
+      }
+      detectday = detectday.minusDays(1)
+    }
+    false
+  }
+
   def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true,SavedVector:Boolean = true, UpdateAll: Boolean = false) = {
-    val today = Calendar.getInstance
-    val ff = new SimpleDateFormat("yyyyMMdd")
-    val filename = "data/holo/overview-push-" + ff.format(today.getTime) + ".zip"
-    if (UpdateAll || (!utils.ZipValidation(filename) && today.get(Calendar.HOUR_OF_DAY) >= 17 && 0 < Calendar.DAY_OF_WEEK && Calendar.DAY_OF_WEEK < 7)) {
-      println("update todays data: " + filename)
+
+    if (UpdateAll || ShouldDownload) {
+      println("updating data from email: ")
       val mail = new EmailReader()
       mail.GetAttachments
       println("mail readed")
@@ -44,7 +67,7 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-      val xa: HikariTransactor[Task] = utils.GetHikariTransactor
+      val xa: HikariTransactor[Task] = utils.GetHikariTransactor("daily-update-pool")
       val vec = new Vectorlize()
       val label = new Labels()
       if (SavedVector) {
@@ -74,7 +97,6 @@ object Main {
               .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
         }
       }
-      xa.shutdown.unsafePerformSync
     }
   }
 
