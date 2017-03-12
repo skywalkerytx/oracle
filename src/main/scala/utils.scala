@@ -4,7 +4,7 @@ import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
 import javax.mail.{Folder, Store}
 
-import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.hikari.hikaritransactor.HikariTransactor
 import doobie.imports._
 
 import scalaz._

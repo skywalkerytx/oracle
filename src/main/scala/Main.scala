@@ -2,16 +2,16 @@ import java.io._
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.hikari.hikaritransactor.HikariTransactor
 import doobie.imports.{ConnectionIO, _}
 
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
 import scala.language.postfixOps
-import doobie.contrib.postgresql.pgtypes._
-import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
-import org.apache.log4j.BasicConfigurator
+import doobie.postgres.pgtypes._
+import doobie.postgres.sqlstate.class23.UNIQUE_VIOLATION
+//import org.apache.log4j.BasicConfigurator
 import shapeless.HNil
 import utils.Features
 import org.joda.time._
@@ -26,33 +26,18 @@ import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 object Main {
 
   def main(args: Array[String]): Unit = {
-    BasicConfigurator.configure()
+    //BasicConfigurator.configure()
 
     //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
-    DailyUpdate(SavetoDatabase = true)
-    Playground.LabelCheck
-  }
+    val SavetoDatabse = true
+    val SaveVector = true
+    val SavedVector = true
+    val SaveLabel = true
+    val UpdateAll = true
 
-  def datetofile(s:String) = "data/holo/overview-push-"+s+".zip"
-
-  def ShouldDownload:Boolean = {
-    val today = new DateTime()
-    var detectday = today
-    val latest = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).map(_.toString).sorted.last
-    val fmt = DateTimeFormat.forPattern("yyyyMMdd")
-    while (datetofile(detectday.toString(fmt)) != latest) {
-      if (detectday == today) {
-        if (today.hourOfDay.get>=18)
-          return true
-      }
-      else {
-        if (detectday.dayOfWeek.get()<6) {
-          return true
-        }
-      }
-      detectday = detectday.minusDays(1)
-    }
-    false
+    //DailyUpdate(SavetoDatabase = true)
+    //ValidationCheck.LabelCheck
+    new kdjpredict().datapreparation
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true,SavedVector:Boolean = true, UpdateAll: Boolean = false) = {
@@ -100,6 +85,27 @@ object Main {
     }
   }
 
+  def ShouldDownload: Boolean = {
+    val today = new DateTime()
+    var detectday = today
+    val latest = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).map(_.toString).sorted.last
+    val fmt = DateTimeFormat.forPattern("yyyyMMdd")
+    while (datetofile(detectday.toString(fmt)) != latest) {
+      if (detectday == today) {
+        if (today.hourOfDay.get >= 18)
+          return true
+      }
+      else {
+        if (detectday.dayOfWeek.get() < 6) {
+          return true
+        }
+      }
+      detectday = detectday.minusDays(1)
+    }
+    false
+  }
+
+  def datetofile(s: String) = "data/holo/overview-push-" + s + ".zip"
 
   def DailyQuery(table: String, feature: Features): ConnectionIO[Int] = {
     val query = "INSERT INTO " + table + " (code,date,vector) VALUES(?,?,?)"

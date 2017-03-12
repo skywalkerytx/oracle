@@ -10,7 +10,7 @@ import scalaz.concurrent.Task
 import utils.{Features, Key, codes, dates}
 
 import scala.collection.immutable.{Iterable, Seq}
-import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+import doobie.postgres.sqlstate.class23.UNIQUE_VIOLATION
 
 import scala.collection.parallel.immutable.ParSeq
 

@@ -2,7 +2,7 @@ import utils.Features
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
-import doobie.contrib.postgresql.pgtypes._
+import doobie.postgres.pgtypes._
 import org.postgresql.util.PSQLException
 
 /**
