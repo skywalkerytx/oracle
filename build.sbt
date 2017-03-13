@@ -29,14 +29,16 @@ libraryDependencies  ++= Seq(
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
-val dl4jversion = "0.7.2"
+val dl4jversion = "0.8.0"
+
+val nd4sversion = "0.7.2"
 
 //dl4j
 libraryDependencies += "org.deeplearning4j" % "deeplearning4j-core" % dl4jversion
 libraryDependencies += "org.datavec" % "datavec-api" % dl4jversion
 //libraryDependencies += "org.nd4j" % "nd4j-native-platform" % dl4jversion
 libraryDependencies += "org.nd4j" % "nd4j-cuda-8.0-platform" % dl4jversion
-libraryDependencies += "org.nd4j" %% "nd4s" % dl4jversion
+libraryDependencies += "org.nd4j" %% "nd4s" % nd4sversion
 
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
