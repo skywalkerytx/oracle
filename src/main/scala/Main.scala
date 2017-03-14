@@ -35,9 +35,9 @@ object Main {
     val SaveLabel = true
     val UpdateAll = true
 
-    DailyUpdate(SavetoDatabase = false)
+    //DailyUpdate(SavetoDatabase = false)
     //ValidationCheck.LabelCheck
-    //new kdjpredict().datapreparation
+    new kdjpredict().datapreparation
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, UpdateAll: Boolean = false) = {

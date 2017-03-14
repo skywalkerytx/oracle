@@ -11,6 +11,8 @@ import org.nd4j.linalg.factory.Nd4j
 import org.nd4s.Implicits._
 import doobie.imports._
 import org.datavec.api.records.reader.impl.collection.CollectionRecordReader
+import org.nd4j.linalg.api.ndarray.INDArray
+import scala.collection.JavaConversions._
 import utils.{codes, dates}
 
 import scala.collection.immutable.Seq
@@ -43,13 +45,14 @@ class kdjpredict {
       row =>
         Array(row._1, row._2, row._3).toNDArray
     }
-    //println(kdj.length)
-    val finalfeature = (1 until kdj.length).map {
+    val finalfeature: java.util.List[INDArray] = (1 until kdj.length).map {
       idx =>
         Nd4j.concat(1, kdj(idx), kdj(idx) - kdj(idx - 1))
     }
+    val shape: Array[Int] = Array(finalfeature.length, 6)
 
-    println(finalfeature.getClass)
+    println(Nd4j.create(finalfeature, shape))
+
     System.exit(0)
   }
 
