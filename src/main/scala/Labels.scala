@@ -2,7 +2,7 @@ import utils.Features
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
-import doobie.contrib.postgresql.pgtypes._
+import doobie.postgres.pgtypes._
 import org.postgresql.util.PSQLException
 
 /**
@@ -16,17 +16,17 @@ class Labels {
   val amp = 1.03
   val rise = 1
   val fall = 0
-  val xa = utils.GetHikariTransactor
+  val xa = utils.GetHikariTransactor("label-pool")
 
   def CheckB(a:rawlabel,b:rawlabel) = {
-    if(a.op*amp>=b.mx)
+    if (a.close * amp <= b.mx)
       1
     else
       0
   }
 
   def CheckA(a:rawlabel,b:rawlabel) = {
-    if(a.close*amp>=b.mx)
+    if (a.op * amp <= b.mx)
       1
     else
       0
@@ -62,7 +62,6 @@ class Labels {
   def LabelB = GenLabel(CheckB)
 
   def GenLabel(checkfunc:(rawlabel,rawlabel) => Int) = {
-    val xa = utils.GetHikariTransactor
     val codes = CodeAvailable.list.transact(xa).unsafePerformSync
     codes.map{
       code=>

@@ -4,7 +4,7 @@ import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
 import javax.mail.{Folder, Store}
 
-import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.hikari.hikaritransactor.HikariTransactor
 import doobie.imports._
 
 import scalaz._
@@ -65,10 +65,11 @@ object utils {
   def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
 
-  def GetHikariTransactor: HikariTransactor[Task] = {
+  def GetHikariTransactor(name: String): HikariTransactor[Task] = {
 
     val xa = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth").unsafePerformSync
     xa.configure(hx => Task(hx.setMaximumPoolSize(Runtime.getRuntime().availableProcessors()))).unsafePerformSync
+    xa.configure(hx => Task(hx.setPoolName(name))).unsafePerformSync
     xa
 }
 
