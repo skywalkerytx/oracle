@@ -13,9 +13,10 @@ import scala.collection.immutable.{Iterable, Seq}
 import doobie.postgres.sqlstate.class23.UNIQUE_VIOLATION
 
 import scala.collection.parallel.immutable.ParSeq
-
 import breeze.linalg._
 import breeze.numerics._
+
+import scala.collection.mutable.ArrayBuilder
 
 class Vectorlize {
 
@@ -53,36 +54,42 @@ class Vectorlize {
         )
     }.toArray
     println(s"doing D now. :${raw.length}")
-    (1 until raw.length).par.map(
+    (1 until raw.length).par.map {
       idx =>
+        val temp = new ArrayBuilder.ofFloat
+        temp ++= (raw(idx)._2 - raw(idx - 1)._2).data
+        temp ++= index(raw(idx)._1.date)
+        temp ++= concept(raw(idx)._1.date)
+        temp ++= mapping(raw(idx)._1)
         Features(raw(idx)._1.code, raw(idx)._1.date,
-          (raw(idx)._2 - raw(idx - 1)._2).data
-            ++ index(raw(idx)._1.date)
-            ++ concept(raw(idx)._1.date)
-            ++ mapping(raw(idx)._1)
+          temp.result
         )
-    )
+    }
   }
 
   def DataVector: ParSeq[Features] = {
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping
     val concept: Map[String, Array[Float]] = GetConcept
-    GetRaw.list.transact(xa).unsafePerformSync.par.map {
+    val res = GetRaw.list.transact(xa).unsafePerformSync.par.map {
       raw =>
+        val temp = new ArrayBuilder.ofFloat
+        temp ++= Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
+          raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
+          raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
+          raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
+          raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
+        )
+        temp ++= index(raw.date)
+        temp ++= concept(raw.date)
+        temp ++= mapping(Key(raw.code, raw.date))
         Features(
           raw.code, raw.date,
-          Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
-            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
-            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
-            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
-            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
-          )
-            ++ index(raw.date)
-            ++ concept(raw.date)
-            ++ mapping(Key(raw.code, raw.date))
+          temp.result
         )
     }
+    println("DataVector generated")
+    res
   }
 
   def GetConcept: Map[String, Array[Float]] = {

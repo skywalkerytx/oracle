@@ -35,12 +35,12 @@ object Main {
     val SaveLabel = true
     val UpdateAll = true
 
-    DailyUpdate(SavetoDatabase = false, UpdateAll = true)
+    DailyUpdate(SavetoDatabase = false)
     //ValidationCheck.LabelCheck
-    new kdjpredict().datapreparation
+    //new kdjpredict().datapreparation
   }
 
-  def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, SavedVector: Boolean = true, UpdateAll: Boolean = false) = {
+  def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, UpdateAll: Boolean = false) = {
 
     if (UpdateAll || ShouldDownload) {
       println("updating data from email: ")
@@ -55,15 +55,6 @@ object Main {
       val xa: HikariTransactor[Task] = utils.GetHikariTransactor("daily-update-pool")
       val vec = new Vectorlize()
       val label = new Labels()
-      if (SavedVector) {
-        println("generating dVector")
-        vec.dVector.foreach {
-          feature =>
-            DailyQuery("dvector", feature)
-              .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
-        }
-      }
-
       if (SaveVector) {
         println("now inserting vector")
         vec.DataVector.foreach {
@@ -75,8 +66,7 @@ object Main {
       }
       if (SaveLabel) {
         println("now inserting label")
-        val labels = new Labels().DataBaseLabel
-        labels.par.foreach {
+        label.DataBaseLabel.foreach {
           label =>
             DailyQuery("label", label)
               .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
