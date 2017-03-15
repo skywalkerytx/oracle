@@ -51,7 +51,10 @@ class kdjpredict {
     }
     val shape: Array[Int] = Array(finalfeature.length, 6)
 
-    println(Nd4j.create(finalfeature, shape))
+    println(Nd4j.create(finalfeature, shape).getClass)
+
+    val reader = new CollectionRecordReader()
+
 
     System.exit(0)
   }
