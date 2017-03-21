@@ -1,3 +1,5 @@
+import java.util
+
 import doobie.postgres.pgtypes._
 import doobie.imports.Query0
 import org.postgresql.util.PSQLException
@@ -12,6 +14,7 @@ import org.nd4s.Implicits._
 import doobie.imports._
 import org.datavec.api.records.reader.impl.collection.CollectionRecordReader
 import org.nd4j.linalg.api.ndarray.INDArray
+
 import scala.collection.JavaConversions._
 import utils.{codes, dates}
 
@@ -29,34 +32,10 @@ class kdjpredict {
 
   val xa = utils.GetHikariTransactor("for dl4j")
 
-  def datapreparation = {
-    codes.map { code =>
-      FeaturesPercode(code)
-    } //.head.foreach(println)
+  //TODO: change plan, grab the data, save to csv, then use CsvRecordReader
 
-  }
+  def DataPreparation = {
 
-  def FeaturesPercode(code: String) = {
-    println(code)
-    val rawset = query(code).list.transact(xa).unsafePerformSync
-    //println(rawset.length)
-    val label = rawset.map(_._4)
-    val kdj = rawset.map {
-      row =>
-        Array(row._1, row._2, row._3).toNDArray
-    }
-    val finalfeature: java.util.List[INDArray] = (1 until kdj.length).map {
-      idx =>
-        Nd4j.concat(1, kdj(idx), kdj(idx) - kdj(idx - 1))
-    }
-    val shape: Array[Int] = Array(finalfeature.length, 6)
-
-    println(Nd4j.create(finalfeature, shape).getClass)
-
-    val reader = new CollectionRecordReader()
-
-
-    System.exit(0)
   }
 
   def query(code: String): Query0[(Float, Float, Float, Float)] = {
