@@ -36,7 +36,6 @@ class Vectorlize {
   val all = 1000000000
 
   def dVector: ParSeq[Features] = {
-    GenMapping
     val index = GetIndex
     val mapping = GetMapping
     val concept = GetConcept
@@ -136,20 +135,23 @@ class Vectorlize {
 
   def GenMapping: Vectorlize = {
     var gid = 0
+
+
     toMap.foreach {
       col =>
         val results: List[MappingClass] = Queries(col).list.transact(xa).unsafePerformSync.
           flatMap(_.split(splitchar)).distinct.map(str => MappingClass(str, col))
-        InsertInto(results).transact(xa)
-          .attemptSomeSqlState { case UNIQUE_VIOLATION => }
-          .unsafePerformSync
+        results.foreach {
+          data =>
+            InsertInto(data).attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
+        }
     }
     this
   }
 
-  def InsertInto(data: List[MappingClass]) = {
+  def InsertInto(data: MappingClass): ConnectionIO[Int] = {
     val query = "insert into Mapping(str,cat) values(?,?)"
-    Update[MappingClass](query).updateMany(data)
+    Update[MappingClass](query).toUpdate0(data).run
   }
 
   def Mapping: Query0[(String, String, Int)] = {

@@ -29,9 +29,9 @@ libraryDependencies  ++= Seq(
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
-val dl4jversion = "0.8.0"
+val dl4jversion = "0.7.2"
 
-val nd4sversion = "0.7.2"
+val nd4sversion = "0.7.2" // bit slower than dl4j
 
 //dl4j
 libraryDependencies += "org.deeplearning4j" % "deeplearning4j-core" % dl4jversion
