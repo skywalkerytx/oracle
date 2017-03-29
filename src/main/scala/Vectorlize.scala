@@ -63,27 +63,6 @@ class Vectorlize {
     )
   }
 
-  def DataVector: ParSeq[Features] = {
-    val index: Map[String, Array[Float]] = GetIndex
-    val mapping: Map[Key, Array[Float]] = GetMapping
-    val concept: Map[String, Array[Float]] = GetConcept
-    GetRaw.list.transact(xa).unsafePerformSync.par.map {
-      raw =>
-        Features(
-          raw.code, raw.date,
-          Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
-            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
-            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
-            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
-            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
-          )
-            ++ index(raw.date)
-            ++ concept(raw.date)
-            ++ mapping(Key(raw.code, raw.date))
-        )
-    }
-  }
-
   def GetConcept: Map[String, Array[Float]] = {
     dates.par.map {
       date =>
@@ -111,7 +90,6 @@ class Vectorlize {
   def IndexByDate(date: String): Query0[(Float, Float, Float, Float, Float, Float, Float)] = {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
-
 
   def GetMapping(): Map[Key, Array[Float]] = {
     GenMapping
@@ -180,6 +158,27 @@ class Vectorlize {
        from
         raw
       """.query[Raw]
+  }
+
+  def DataVector: ParSeq[Features] = {
+    val index: Map[String, Array[Float]] = GetIndex
+    val mapping: Map[Key, Array[Float]] = GetMapping
+    val concept: Map[String, Array[Float]] = GetConcept
+    GetRaw.list.transact(xa).unsafePerformSync.par.map {
+      raw =>
+        Features(
+          raw.code, raw.date,
+          Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
+            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
+            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
+            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
+            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
+          )
+            ++ index(raw.date)
+            ++ concept(raw.date)
+            ++ mapping(Key(raw.code, raw.date))
+        )
+    }
   }
 
   case class Raw(code: String, date: String, op: Float, mx: Float, mn: Float, clse: Float,

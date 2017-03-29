@@ -37,12 +37,18 @@ object utils {
     cal.add(Calendar.DATE, -1)
     format.format(cal.getTime)
   }
-
   val D0 = {
     val format = new SimpleDateFormat("yyyy-MM-dd")
     val cal = Calendar.getInstance()
     cal.add(Calendar.DATE, -2)
     format.format(cal.getTime)
+  }
+
+  def deleteifExists(path: String) = {
+    val fileTemp = new File(path)
+    if (fileTemp.exists) {
+      fileTemp.delete()
+    }
   }
 
   def recursiveListFiles(f: File): Array[File] = {

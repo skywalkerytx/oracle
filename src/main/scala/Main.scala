@@ -29,15 +29,15 @@ object Main {
     //BasicConfigurator.configure()
 
     //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
-    val SavetoDatabse = true
+    val SavetoDatabse = false
     val SaveVector = true
     val SavedVector = true
     val SaveLabel = true
     val UpdateAll = true
 
-    DailyUpdate(SavetoDatabase = true)
+    //DailyUpdate(SavetoDatabase = SavetoDatabse)
     //ValidationCheck.LabelCheck
-    new kdjpredict().datapreparation
+    new kdjpredict().mxnet
   }
 
   def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true,SavedVector:Boolean = true, UpdateAll: Boolean = false) = {

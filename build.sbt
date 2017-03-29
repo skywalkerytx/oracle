@@ -28,17 +28,27 @@ libraryDependencies  ++= Seq(
 )
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
+resolvers += "Local Maven Repository" at "file://" + "/home/nova/.m2/repository"
 
-val dl4jversion = "0.7.2"
 
-val nd4sversion = "0.7.2" // bit slower than dl4j
+val dl4jversion = "0.8.0"
 
+val nd4sversion = "0.8.0" // bit slower than dl4j
+
+
+/*
 //dl4j
 libraryDependencies += "org.deeplearning4j" % "deeplearning4j-core" % dl4jversion
 libraryDependencies += "org.datavec" % "datavec-api" % dl4jversion
 //libraryDependencies += "org.nd4j" % "nd4j-native-platform" % dl4jversion
 libraryDependencies += "org.nd4j" % "nd4j-cuda-8.0-platform" % dl4jversion
 libraryDependencies += "org.nd4j" %% "nd4s" % nd4sversion
+*/
+
+
+//mxnet, manually compiled. opencv support disabled
+
+libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT"
 
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
