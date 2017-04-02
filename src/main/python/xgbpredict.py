@@ -17,7 +17,7 @@ def param():
     clfparam['eta'] = 0.01
     clfparam['objective'] = 'binary:logistic'
     #clfparam['booster'] = 'gbtree'
-    clfparam['silent'] = 1
+    clfparam['silent'] = 0
     clfparam['max_depth'] = 9
     #clfparam['subsample'] = 0.5
 
@@ -78,7 +78,7 @@ def datapreparation():
     feature = np.load('data/xgb/feature.npy')
     label = np.load('data/xgb/label.npy')
     x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.33)
-    dtrain = xgb.DMatrix(data=x_train, label=y_train)
+    dtrain = xgb.DMatrix(data=x_train, label=y_train)  # ,weight=weight)
     dtest = xgb.DMatrix(data=x_test, label=y_test)
     # dtrain.save_binary('data/xgb/dtrain.matrix')
     # dtest.save_binary('data/xgb/dtest.matrix')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     bst = xgb.train(dtrain=dtrain, num_boost_round=100, params=param())
     preds = bst.predict(dtest)
     label = dtest.get_label()
-    ran = np.arange(0, 0.73, 0.01)
+    ran = np.arange(0, 0.8, 0.01)
     rrr = list(map(lambda x: result(preds, label, x), list(ran)))
     con.commit()
     pcr = list(map(lambda x: x[0], rrr))
