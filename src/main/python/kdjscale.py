@@ -24,18 +24,20 @@ def kdjscale():
     con, cur = poolconn()
     con.autocommit = False
     cur.execute('delete from kdj')
-    cur.execute('select ARRAY[k,d,j] from raw order by code,date asc')
+    cur.execute('select ARRAY[k,d,j,k-d,k-j,d-j,macddif,macddea,macddif-macddea] from raw order by code,date asc')
+    # cur.execute('select ARRAY[k,d,j] from raw order by code,date asc')
     kdjs = np.asarray(list(map(lambda x: x[0], cur.fetchall())))
+    # cur.execute("select code,date,case when kdjcross='金叉' then 1 when kdjcross = '死叉' then 0 else 0 end from raw order by code,date asc")
     cur.execute(
-        "select code,date,case when kdjcross='金叉' then 1 when kdjcross = '死叉' then 2 else 0 end from raw order by code,date asc")
+        "select code,date,case when kdjcross='金叉' and macdcross = '金叉' then 1 else 0 end from raw order by code,date asc")
     idx = cur.fetchall()
     MMS = preprocessing.MinMaxScaler()
     SS = preprocessing.StandardScaler()
     MMS.fit(kdjs)
-    SS.fit(kdjs)
+    #SS.fit(kdjs)
     kdjs = MMS.transform(kdjs)
 
-    kdj = np.zeros(shape=(len(kdjs), 27))
+    kdj = np.zeros(shape=(len(kdjs), len(kdjs[0]) * 9))
 
     for i in range(len(kdjs) - 1, 4, -1):
         kdj[i] = concat(kdjs[i - 4], kdjs[i - 3], kdjs[i - 2], kdjs[i - 1], kdjs[
@@ -48,5 +50,7 @@ def kdjscale():
         date = idx[i][1]
         cross = idx[i + 1][2]
         cur.execute('insert into kdj(code,date,kdj,label) values(%s,%s,%s,%s)', (code, date, list(kdj[i]), cross))
+    cur.execute('insert into kdj(code,date,kdj) values(%s,%s,%s)',
+                (idx[len(kdjs) - 1][0], idx[len(kdjs) - 1][1], list(kdj[len(kdj) - 1])))  #newest, no label available
     con.commit()
     con.close()

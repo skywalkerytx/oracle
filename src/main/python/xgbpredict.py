@@ -7,129 +7,98 @@ import pyut
 from sklearn.model_selection import train_test_split
 from kdjscale import kdjscale
 
+con, cur = pyut.poolconn()
+
+
+# con.autocommit = True
 
 def param():
     clfparam = dict()
     clfparam['eta'] = 0.01
-    clfparam['objective'] = 'multi:softmax'
-    clfparam['num_class'] = 3
+    clfparam['objective'] = 'binary:logistic'
     #clfparam['booster'] = 'gbtree'
     clfparam['silent'] = 1
-    clfparam['max_depth'] = 6
+    clfparam['max_depth'] = 9
     #clfparam['subsample'] = 0.5
 
-    # clfparam['eval_metric'] = ['myerror1','myerror2']
+    clfparam['eval_metric'] = ['error', 'error@0.7']
     #clfparam['max_delta_step'] = 1
     #clfparam['scale_pos_weight'] = 29228.0/199979
     #clfparam['updater'] = 'grow_gpu'
     return clfparam
 
 
-def CM1(preds, dtrain):
-    y_test = dtrain.get_label()
+def result(preds, label, threshold):
     pc = 0.0
     cc = 0.0
-    for i in range(0, len(y_test)):
-        cls = int(preds[i])
-        real = int(y_test[i])
-        if cls == 1:
+    rc = 0.0
+    for i in range(0, len(preds)):
+        if label[i] >= 0.5:
+            rc += 1
+        if preds[i] >= threshold:
             pc += 1
-            if real == 1:
+            if label[i] >= 0.5:
                 cc += 1
-    return 'myerror1', cc / pc
+    print(threshold)
+    try:
+        cur.execute('INSERT INTO rate(pcr,rcr,threshold) values(%s,%s,%s)', (cc / pc, cc / rc, threshold))
+        return [cc / pc, cc / rc]
+    except ZeroDivisionError:
+        return result(preds, label, threshold=threshold - 0.01)
 
 
-def CM2(preds, dtrain):
-    y_test = dtrain.get_label()
+def result2(preds, label, threshold1, threshold2):
     pc = 0.0
     cc = 0.0
-    for i in range(0, len(y_test)):
-        cls = int(preds[i])
-        real = int(y_test[i])
-        if real == 1:
+    rc = 0.0
+    for i in range(0, len(preds)):
+        if label[i] >= 0.5:
+            rc += 1
+        if preds[i] >= 0.65 and preds[i] < 0.7:
             pc += 1
-            if cls == 1:
+            if label[i] >= 0.5:
                 cc += 1
-    return 'myerror2', cc / pc
+    print(threshold1, threshold2)
+    # cur.execute('INSERT INTO rate(pcr,rcr,threshold) values(%s,%s,%s)',(cc/pc,cc/rc,threshold))
+    return [cc / pc, cc / rc]
 
 
-def predictbycode(code):
-    con, cur = pyut.poolconn()
-    cur.execute('select kdj,label from kdj where code = %s', (code,))
+def fromdb():
+    kdjscale()
+    cur.execute('select kdj,label from kdj where label is not null')
     res = cur.fetchall()
-    if len(res) < 5:
-        return 0, 0
     feature = np.asarray(list(map(lambda x: x[0], res)))
     label = np.asarray(list(map(lambda x: x[1], res)))
-    X_train, X_test, y_train, y_test = train_test_split(feature, label, test_size=0.33, random_state=42)
-    train_weight = np.ones((len(y_train), 1))
-    for i in range(0, len(y_train)):
-        if int(y_train[i]) == 1:
-            train_weight[i] = 10
-        if int(y_train[i]) == 2:
-            train_weight[i] = 5
-    TD = xgb.DMatrix(data=X_train, label=y_train, weight=train_weight)
-    ED = xgb.DMatrix(data=X_test, label=y_test)
-    watchlist = [(TD, 'train'), (ED, 'eval')]
-    booster = xgb.train(params=param(), dtrain=TD, num_boost_round=500)  # , evals=watchlist,maximize=True)
-    booster.save_model('data/xgb/' + code + '.model')
-    preds = booster.predict(ED)
+    np.save('data/xgb/feature', feature)
+    np.save('data/xgb/label', label)
 
-    pc = 0.0
-    cc = 0.0
-    for i in range(0, len(preds)):
-        if int(preds[i]) == 1:
-            pc += 1
-            if y_test[i] == 1:
-                cc += 1
-    if pc != 0:
-        print(cc / pc)
-    pyut.putcon(con)
-    return cc, pc
+
+def datapreparation():
+    # fromdb()
+    feature = np.load('data/xgb/feature.npy')
+    label = np.load('data/xgb/label.npy')
+    x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.33)
+    dtrain = xgb.DMatrix(data=x_train, label=y_train)
+    dtest = xgb.DMatrix(data=x_test, label=y_test)
+    # dtrain.save_binary('data/xgb/dtrain.matrix')
+    # dtest.save_binary('data/xgb/dtest.matrix')
+    return (dtrain, dtest)
+
 
 if __name__ == '__main__':
-    # kdjscale()
-    '''
-    codes = pyut.getcode()
-    cc = 0.0
-    pc = 0.0
-    for code in codes:
-        a,b = predictbycode(code)
-        cc+=a
-        pc+=b
-
-    print(cc/pc)
-    print(cc,pc)
-    '''
-    ccdic = dict()
-    pcdic = dict()
-    ratedic = dict()
-    import os
-
-    models = os.listdir('data/xgb')
-    con, cur = pyut.poolconn()
-    cur.execute('select kdj,label from kdj')
-    res = cur.fetchall()
-    feature = np.asarray(list(map(lambda x: x[0], res)))
-    label = np.asarray(list(map(lambda x: x[1], res)))
-    ED = xgb.DMatrix(data=feature, label=label)
-    for model in models:
-        booster = xgb.Booster(model_file='data/xgb/' + model)
-        preds = booster.predict(ED)
-        pc = 0.0
-        cc = 0.0
-        for i in range(0, len(preds)):
-            if int(preds[i]) == 1:
-                pc += 1
-                if label[i] == 1:
-                    cc += 1
-        ccdic[model] = cc
-        pcdic[model] = pc
-        if pc != 0:
-            ratedic[model] = cc / pc
-            print(
-                '''%s:
-                    %f''' % (model, cc / pc))
-    print(sorted(ratedic.values()))
-
+    (dtrain, dtest) = datapreparation()
+    cur.execute('delete from rate')
+    # dtrain = xgb.DMatrix('data/xgb/dtrain.matrix')
+    # dtest = xgb.DMatrix('data/xgb/dtest.matrix')
+    bst = xgb.train(dtrain=dtrain, num_boost_round=100, params=param())
+    preds = bst.predict(dtest)
+    label = dtest.get_label()
+    ran = np.arange(0, 0.73, 0.01)
+    rrr = list(map(lambda x: result(preds, label, x), list(ran)))
+    con.commit()
+    pcr = list(map(lambda x: x[0], rrr))
+    rcr = list(map(lambda x: x[1], rrr))
+    plt.plot(ran, pcr, 'r', ran, rcr, 'b')
+    plt.show()
+    print(result2(preds, label, 0.67,0.7))
     pyut.putcon(con)
