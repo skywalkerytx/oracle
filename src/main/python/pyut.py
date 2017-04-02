@@ -18,6 +18,10 @@ def poolconn():
     cur = conn.cursor()
     return conn,cur
 
+
+def putcon(con):
+    SqlPool.putconn(con)
+
 def getcode():
     conn, cur = poolconn()
     cur.execute('select distinct code from raw')
