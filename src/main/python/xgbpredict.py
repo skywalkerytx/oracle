@@ -1,34 +1,23 @@
-import xgboost as xgb
-from multiprocessing.pool import ThreadPool,Pool
-import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import numpy as np
 import pyut
-from sklearn.model_selection import train_test_split
+import xgboost as xgb
+from itertools import repeat
 from kdjscale import kdjscale
+from multiprocessing.pool import Pool
+from sklearn.model_selection import train_test_split
 
 con, cur = pyut.poolconn()
 
 
 # con.autocommit = True
 
-def param():
-    clfparam = dict()
-    clfparam['eta'] = 0.01
-    clfparam['objective'] = 'binary:logistic'
-    #clfparam['booster'] = 'gbtree'
-    clfparam['silent'] = 0
-    clfparam['max_depth'] = 9
-    #clfparam['subsample'] = 0.5
-
-    clfparam['eval_metric'] = ['error', 'error@0.7']
-    #clfparam['max_delta_step'] = 1
-    #clfparam['scale_pos_weight'] = 29228.0/199979
-    #clfparam['updater'] = 'grow_gpu'
-    return clfparam
 
 
-def result(preds, label, threshold):
+
+
+def result(para):
+    preds, label, threshold = para
     pc = 0.0
     cc = 0.0
     rc = 0.0
@@ -39,9 +28,9 @@ def result(preds, label, threshold):
             pc += 1
             if label[i] >= 0.5:
                 cc += 1
-    print(threshold)
+    # print(threshold)
     try:
-        cur.execute('INSERT INTO rate(pcr,rcr,threshold) values(%s,%s,%s)', (cc / pc, cc / rc, threshold))
+        # cur.execute('INSERT INTO rate(pcr,rcr,threshold) values(%s,%s,%s)', (cc / pc, cc / rc, threshold))
         return [cc / pc, cc / rc]
     except ZeroDivisionError:
         return result(preds, label, threshold=threshold - 0.01)
@@ -74,31 +63,65 @@ def fromdb():
 
 
 def datapreparation():
-    # fromdb()
+    fromdb()
     feature = np.load('data/xgb/feature.npy')
     label = np.load('data/xgb/label.npy')
-    x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.33)
-    dtrain = xgb.DMatrix(data=x_train, label=y_train)  # ,weight=weight)
-    dtest = xgb.DMatrix(data=x_test, label=y_test)
+    x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.33, random_state=42)
+    # dtrain = xgb.DMatrix(data=x_train, label=y_train)  # ,weight=weight)
+    # dtest = xgb.DMatrix(data=x_test, label=y_test)
     # dtrain.save_binary('data/xgb/dtrain.matrix')
     # dtest.save_binary('data/xgb/dtest.matrix')
-    return (dtrain, dtest)
+    return (x_train, x_test, y_train, y_test)
+
+
+def param():
+    clfparam = dict()
+    clfparam['eta'] = 0.01
+    clfparam['objective'] = 'binary:logistic'
+    # clfparam['booster'] = 'gbtree'
+    clfparam['silent'] = 0
+    clfparam['max_depth'] = 9
+    # clfparam['subsample'] = 0.5
+
+    clfparam['eval_metric'] = ['error', 'error@0.7']
+    # clfparam['max_delta_step'] = 1
+    # clfparam['scale_pos_weight'] = 29228.0/199979
+    # clfparam['updater'] = 'grow_gpu'
+    return clfparam
+
+
+
 
 
 if __name__ == '__main__':
-    (dtrain, dtest) = datapreparation()
+    x_train, x_test, y_train, y_test = datapreparation()
     cur.execute('delete from rate')
     # dtrain = xgb.DMatrix('data/xgb/dtrain.matrix')
     # dtest = xgb.DMatrix('data/xgb/dtest.matrix')
-    bst = xgb.train(dtrain=dtrain, num_boost_round=100, params=param())
-    preds = bst.predict(dtest)
-    label = dtest.get_label()
+    count = 0
+    tp = Pool(8)
+    rounds = 100
+    bst = xgb.XGBClassifier(max_depth=81, learning_rate=0.01, n_estimators=100, silent=False,
+                            objective='binary:logistic',
+                            nthread=-1, gamma=0, min_child_weight=1, max_delta_step=0, subsample=1, colsample_bytree=1,
+                            colsample_bylevel=1, reg_alpha=0, reg_lambda=1, scale_pos_weight=1, base_score=0.5, seed=0,
+                            missing=None)
+    bst.fit(x_train, y_train)
+    # xgb.plot_importance(bst)
+    plt.bar(range(len(bst.feature_importances_)), bst.feature_importances_)
+    plt.show()
+    exit(0)
+    preds = bst.predict(x_test)
+    label = y_test
     ran = np.arange(0, 0.8, 0.01)
-    rrr = list(map(lambda x: result(preds, label, x), list(ran)))
+    para = list(zip(repeat(preds), repeat(label), list(ran)))
+    rrr = tp.map(result, para)
     con.commit()
     pcr = list(map(lambda x: x[0], rrr))
     rcr = list(map(lambda x: x[1], rrr))
-    plt.plot(ran, pcr, 'r', ran, rcr, 'b')
-    plt.show()
-    print(result2(preds, label, 0.67,0.7))
+    count += 1
+    # plt.plot(ran, pcr, 'r', ran, rcr, 'b')
+    # plt.show()
+    # print(result2(preds, label, 0.67,0.7))
+
     pyut.putcon(con)

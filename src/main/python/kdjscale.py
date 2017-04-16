@@ -24,16 +24,17 @@ def kdjscale():
     con, cur = poolconn()
     con.autocommit = False
     cur.execute('delete from kdj')
-    cur.execute('select ARRAY[k,d,j,k-d,k-j,d-j,macddif,macddea,macddif-macddea] from raw order by code,date asc')
-    # cur.execute('select ARRAY[k,d,j] from raw order by code,date asc')
+    cur.execute('select ARRAY[k,d,j,k-d,k-j,d-j,macddif,macddea,macddif-macddea] from raw order by code asc,date asc')
+    # cur.execute('select ARRAY[k,d,j] from raw order by code asc,date asc')
     kdjs = np.asarray(list(map(lambda x: x[0], cur.fetchall())))
-    # cur.execute("select code,date,case when kdjcross='金叉' then 1 when kdjcross = '死叉' then 0 else 0 end from raw order by code,date asc")
+    # cur.execute("select code,date,case when kdjcross='金叉' then 1 when kdjcross = '死叉' then 0 else 0 end from raw order by code asc,date asc")
     cur.execute(
-        "select code,date,case when kdjcross='金叉' and macdcross = '金叉' then 1 else 0 end from raw order by code,date asc")
+        "select code,date,case when kdjcross='金叉' and macdcross = '金叉' then 1 else 0 end from raw order by code asc,date asc")
     idx = cur.fetchall()
     MMS = preprocessing.MinMaxScaler()
     SS = preprocessing.StandardScaler()
     MMS.fit(kdjs)
+    MMS.fit
     #SS.fit(kdjs)
     kdjs = MMS.transform(kdjs)
 
@@ -43,7 +44,7 @@ def kdjscale():
         kdj[i] = concat(kdjs[i - 4], kdjs[i - 3], kdjs[i - 2], kdjs[i - 1], kdjs[
             i])  # np.concatenate((kdjs[i - 4], kdjs[i - 3], kdjs[i - 2], kdjs[i - 1], kdjs[i]), axis=0)
 
-    PCA(copy=False).fit(kdj)
+    # PCA(copy=False).fit(kdj)
 
     for i in range(5, len(kdjs) - 1):
         code = idx[i][0]

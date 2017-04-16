@@ -68,7 +68,7 @@ object utils {
     return true
   }
 
-  def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+  def GetDriverManagerTransactor = DriverManagerTransactor[IOLite]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
 
   def GetHikariTransactor(name:String): HikariTransactor[Task] = {

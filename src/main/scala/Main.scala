@@ -29,13 +29,13 @@ object Main {
     //BasicConfigurator.configure()
 
     //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
-    val SavetoDatabse = false
+    val SavetoDatabse = true
     val SaveVector = true
     val SavedVector = true
     val SaveLabel = true
     val UpdateAll = true
 
-    //DailyUpdate(SavetoDatabase = SavetoDatabse)
+    DailyUpdate(SavetoDatabase = SavetoDatabse)
     //ValidationCheck.LabelCheck
     new kdjpredict().mxnet
   }
@@ -52,6 +52,7 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
+      Cleanse
       val xa: HikariTransactor[Task] = utils.GetHikariTransactor("daily-update-pool")
       val vec = new Vectorlize()
       val label = new Labels()
@@ -83,6 +84,20 @@ object Main {
         }
       }
     }
+  }
+
+  def Cleanse = {
+    val xa = utils.GetDriverManagerTransactor
+    println("count:")
+    sql"select count(1) from vector".query[String].list.transact(xa).unsafePerformIO.take(1).foreach(println)
+    println("count end")
+    val vector: Update0 = sql"delete from vector".update
+    val dvec: Update0 = sql"delete from dvector".update
+    val label: Update0 = sql"delete from label".update
+    (vector.run *> dvec.run *> label.run).transact(xa).unsafePerformIO
+    println("count:")
+    sql"select count(1) from vector".query[String].list.transact(xa).unsafePerformIO.take(1).foreach(println)
+    println("count end")
   }
 
   def ShouldDownload: Boolean = {
