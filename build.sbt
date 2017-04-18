@@ -48,7 +48,7 @@ libraryDependencies += "org.nd4j" %% "nd4s" % nd4sversion
 
 //mxnet, manually compiled. opencv support disabled
 
-libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT"
+//libraryDependencies += "ml.dmlc.mxnet" % "mxnet-full_2.11-linux-x86_64-gpu" % "0.1.2-SNAPSHOT"
 
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard

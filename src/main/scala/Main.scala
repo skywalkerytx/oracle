@@ -35,12 +35,12 @@ object Main {
     val SaveLabel = true
     val UpdateAll = true
 
-    DailyUpdate(SavetoDatabase = SavetoDatabse)
+    DailyUpdate(SavetoDatabase = SavetoDatabse, SaveVector = SaveVector, SaveLabel = SaveLabel)
     //ValidationCheck.LabelCheck
-    new kdjpredict().mxnet
+    //new kdjpredict().mxnet
   }
 
-  def DailyUpdate(SavetoDatabase: Boolean = false,SaveVector:Boolean = true,SaveLabel:Boolean = true,SavedVector:Boolean = true, UpdateAll: Boolean = false) = {
+  def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, SavedVector: Boolean = false, UpdateAll: Boolean = false) = {
 
     if (UpdateAll || ShouldDownload) {
       println("updating data from email: ")
@@ -124,6 +124,7 @@ object Main {
 
   def DailyQuery(table: String, feature: Features): ConnectionIO[Int] = {
     val query = "INSERT INTO " + table + " (code,date,vector) VALUES(?,?,?)"
+
     Update[Features](query).toUpdate0(feature).run
   }
 

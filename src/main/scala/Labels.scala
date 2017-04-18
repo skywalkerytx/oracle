@@ -54,6 +54,7 @@ class Labels {
   }
 
   def Real(key:utils.Key):Query0[rawlabel] = {
+
     sql"select op,mx,clse from raw where code= ${key.code} and date = ${key.date}".query[rawlabel]
   }
 
@@ -72,6 +73,7 @@ class Labels {
         }
         val buffer = new ArrayBuffer[(String,String,Int)]()
         for ( i <- 0 until reals.length -2) {
+
           buffer.append((code,dates(i),checkfunc(reals(i+1),reals(i+2))))
         }
         buffer

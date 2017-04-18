@@ -35,7 +35,7 @@ def kdjscale():
     SS = preprocessing.StandardScaler()
     MMS.fit(kdjs)
     MMS.fit
-    #SS.fit(kdjs)
+    # SS.fit(kdjs)
     kdjs = MMS.transform(kdjs)
 
     kdj = np.zeros(shape=(len(kdjs), len(kdjs[0]) * 9))
@@ -52,6 +52,6 @@ def kdjscale():
         cross = idx[i + 1][2]
         cur.execute('insert into kdj(code,date,kdj,label) values(%s,%s,%s,%s)', (code, date, list(kdj[i]), cross))
     cur.execute('insert into kdj(code,date,kdj) values(%s,%s,%s)',
-                (idx[len(kdjs) - 1][0], idx[len(kdjs) - 1][1], list(kdj[len(kdj) - 1])))  #newest, no label available
+                (idx[len(kdjs) - 1][0], idx[len(kdjs) - 1][1], list(kdj[len(kdj) - 1])))  # newest, no label available
     con.commit()
     con.close()

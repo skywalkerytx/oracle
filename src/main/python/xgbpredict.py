@@ -90,9 +90,6 @@ def param():
     return clfparam
 
 
-
-
-
 if __name__ == '__main__':
     x_train, x_test, y_train, y_test = datapreparation()
     cur.execute('delete from rate')
