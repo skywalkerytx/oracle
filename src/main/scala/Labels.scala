@@ -1,6 +1,9 @@
 import utils.Features
 
-import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.mutable.ParArray
+import doobie.postgres.pgtypes._
+import org.postgresql.util.PSQLException
 
 /**
   * Created by nova on 16-12-27.
@@ -12,56 +15,80 @@ class Labels {
 
   val amp = 1.03
   val rise = 1
-  val fall = -1
-  val xa = utils.GetHikariTransactor
+  val fall = 0
+  val xa = utils.GetHikariTransactor("label-pool")
 
-  def LabelA(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkA, delta)
+  def CheckB(a:rawlabel,b:rawlabel) = {
+    if(a.close*amp<=b.mx)
+      1
+    else
+      0
+  }
 
-  def GenLabel(CheckFunction: (Array[Float], Array[Float]) => Int, delta: Int): Map[Key, Int] = {
-    val raw = query.list.transact(xa).unsafePerformSync.groupBy {
-      _._1
-    }
-    codes.par.map {
-      code =>
-        val data = raw(code).map {
-          case (code: String, date: String, op: Float, mx: Float, mn: Float, clse: Float) =>
-            (date, Array(op, mx, mn, clse))
-        }.sortBy(_._1)
-        0 until data.length - delta map {
-          i =>
-            (Key(code, data(i)._1), CheckFunction(data(i + 1)._2, data(i + delta)._2))
+  def CheckA(a:rawlabel,b:rawlabel) = {
+    if(a.op*amp<=b.mx)
+      1
+    else
+      0
+  }
+
+  def CodeAvailable:Query0[String] =
+    sql"""
+       SELECT
+         DISTINCT code
+       FROM (
+          SELECT
+           code,
+           count(1) as cc
+          FROM
+           raw
+          GROUP BY
+           code
+          ) AS countbycode
+       WHERE
+           countbycode.cc >3;
+       """.query[String]
+
+  def DateAvailable(code:String):Query0[String] = {
+    sql"select date from raw where code = $code order by date asc".query[String]
+  }
+
+  def Real(key:utils.Key):Query0[rawlabel] = {
+
+    sql"select op,mx,clse from raw where code= ${key.code} and date = ${key.date}".query[rawlabel]
+  }
+
+  def LabelA = GenLabel(CheckA)
+
+  def LabelB = GenLabel(CheckB)
+
+  def GenLabel(checkfunc:(rawlabel,rawlabel) => Int) = {
+    val codes = CodeAvailable.list.transact(xa).unsafePerformSync
+    codes.map{
+      code=>
+        val dates = DateAvailable(code).list.transact(xa).unsafePerformSync.toArray.par
+        val reals= dates.map{
+          date=>
+              Real(Key(code,date)).unique.transact(xa).unsafePerformSync
         }
-    }.reduce {
-      (a, b) =>
-        a ++ b
-    }.toMap
-  }
+        val buffer = new ArrayBuffer[(String,String,Int)]()
+        for ( i <- 0 until reals.length -2) {
 
-  def query: Query0[(String, String, Float, Float, Float, Float)] = sql"select code,date,op,mx,mn,clse from raw".query[(String, String, Float, Float, Float, Float)]
-
-  def LabelB(delta: Int = 2): Map[Key, Int] = GenLabel(this.checkB, delta)
-
-  def checkA(day1: Array[Float], day2: Array[Float]): Int = {
-    //compare d+1 & d+2
-    if (day1(0) * amp >= day2(1))
-      rise
-    else
-      fall
-  }
-
-  def checkB(day1: Array[Float], day2: Array[Float]): Int = {
-    if (day1(3) * amp >= day2(1))
-      rise
-    else
-      fall
+          buffer.append((code,dates(i),checkfunc(reals(i+1),reals(i+2))))
+        }
+        buffer
+    }.reduce{
+      (x,y) =>
+      x++y
+    }.map(row=>(Key(row._1,row._2),row._3)).toMap
   }
 
   def DataBaseLabel: Array[Features] = {
-    val la = LabelA()
-    val lb = LabelB()
+    val la = LabelA
+    val lb = LabelB
     la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key))))
   }.toArray
 
-  case class rawlabel(date: String, data: Array[Float])
+  case class rawlabel(op:Float,mx:Float,close:Float)
 
 }

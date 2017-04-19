@@ -2,6 +2,8 @@
   * Created by nova on 16-12-25.
   */
 
+import java.util.NoSuchElementException
+
 import doobie.imports._
 
 import scalaz._
@@ -10,14 +12,17 @@ import scalaz.concurrent.Task
 import utils.{Features, Key, codes, dates}
 
 import scala.collection.immutable.{Iterable, Seq}
+import doobie.postgres.sqlstate.class23.UNIQUE_VIOLATION
 
-import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
+import scala.collection.parallel.immutable.ParSeq
+import breeze.linalg._
+import breeze.numerics._
 
 class Vectorlize {
 
   val splitchar = '；'
   val toMap = List("industry", "concept", "area", "macross", "macdcross", "kdjcross")
-  val xa = utils.GetHikariTransactor
+  val xa = utils.GetHikariTransactor("vectorlize-pool")
 
   val Queries: Map[String, Query0[String]] =
     Map(
@@ -31,19 +36,54 @@ class Vectorlize {
 
   val all = 1000000000
 
-  def DataBaseVector: Array[Features] = DataVector.map {
-    vector =>
-      utils.Features(vector._1._1, vector._1._2, vector._2)
-  }.toArray
+  def dVector: ParSeq[Features] = {
+    var index = GetIndex
+    val mapping = GetMapping
+    val concept = GetConcept
+    val raw= GetRaw.list.transact(xa).unsafePerformSync.par.map{
+      raw =>
+        (
+          Key(raw.code, raw.date),
+          DenseVector(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
+            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
+            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
+            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
+            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
+          )
+        )
+    }.toArray
+    println(s"doing D now. :${raw.length}")
+    (1 until raw.length).par.map(
+      idx =>
+        try {
+          Features(raw(idx)._1.code, raw(idx)._1.date,
+            (raw(idx)._2 - raw(idx - 1)._2).data
+              ++ index(raw(idx)._1.date)
+              ++ concept(raw(idx)._1.date)
+              ++ mapping(raw(idx)._1)
+          )
+        }
+        catch {
+          case ex: NoSuchElementException =>
+            index = GetIndex
+            Features(raw(idx)._1.code, raw(idx)._1.date,
+              (raw(idx)._2 - raw(idx - 1)._2).data
+                ++ index(raw(idx)._1.date)
+                ++ concept(raw(idx)._1.date)
+                ++ mapping(raw(idx)._1)
+            )
+        }
+    )
+  }
 
-  def DataVector: Map[(String, String), Array[Float]] = {
+  def DataVector: ParSeq[Features] = {
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping
     val concept: Map[String, Array[Float]] = GetConcept
     GetRaw.list.transact(xa).unsafePerformSync.par.map {
       raw =>
-        (
-          (raw.code, raw.date),
+        Features(
+          raw.code, raw.date,
           Array(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
             raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
             raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
@@ -54,7 +94,7 @@ class Vectorlize {
             ++ concept(raw.date)
             ++ mapping(Key(raw.code, raw.date))
         )
-    }.seq.toMap
+    }
   }
 
   def GetConcept: Map[String, Array[Float]] = {
@@ -85,7 +125,6 @@ class Vectorlize {
     sql"select open,close,low,high,volume,money,delta from rawindex where index_date = $date order by index_code asc".query[(Float, Float, Float, Float, Float, Float, Float)]
   }
 
-
   def GetMapping(): Map[Key, Array[Float]] = {
     GenMapping
     val mappings: Map[(String, String), Int] = Mapping.list.transact(xa).unsafePerformSync.map { a => ((a._1, a._2), a._3) }.toMap
@@ -108,20 +147,23 @@ class Vectorlize {
 
   def GenMapping: Vectorlize = {
     var gid = 0
+
+
     toMap.foreach {
       col =>
         val results: List[MappingClass] = Queries(col).list.transact(xa).unsafePerformSync.
           flatMap(_.split(splitchar)).distinct.map(str => MappingClass(str, col))
-        InsertInto(results).transact(xa)
-          .attemptSomeSqlState { case UNIQUE_VIOLATION => }
-          .unsafePerformSync
+        results.foreach {
+          data =>
+            InsertInto(data).attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
+        }
     }
     this
   }
 
-  def InsertInto(data: List[MappingClass]) = {
+  def InsertInto(data: MappingClass): ConnectionIO[Int] = {
     val query = "insert into Mapping(str,cat) values(?,?)"
-    Update[MappingClass](query).updateMany(data)
+    Update[MappingClass](query).toUpdate0(data).run
   }
 
   def Mapping: Query0[(String, String, Int)] = {

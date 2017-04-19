@@ -4,7 +4,7 @@ import java.util.Calendar
 import java.util.zip.{ZipException, ZipFile}
 import javax.mail.{Folder, Store}
 
-import doobie.contrib.hikari.hikaritransactor.HikariTransactor
+import doobie.hikari.hikaritransactor.HikariTransactor
 import doobie.imports._
 
 import scalaz._
@@ -37,12 +37,18 @@ object utils {
     cal.add(Calendar.DATE, -1)
     format.format(cal.getTime)
   }
-
   val D0 = {
     val format = new SimpleDateFormat("yyyy-MM-dd")
     val cal = Calendar.getInstance()
     cal.add(Calendar.DATE, -2)
     format.format(cal.getTime)
+  }
+
+  def deleteifExists(path: String) = {
+    val fileTemp = new File(path)
+    if (fileTemp.exists) {
+      fileTemp.delete()
+    }
   }
 
   def recursiveListFiles(f: File): Array[File] = {
@@ -62,10 +68,16 @@ object utils {
     return true
   }
 
-  def GetDriverManagerTransactor = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
+  def GetDriverManagerTransactor = DriverManagerTransactor[IOLite]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
 
 
-  def GetHikariTransactor: HikariTransactor[Task] = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth").unsafePerformSync
+  def GetHikariTransactor(name:String): HikariTransactor[Task] = {
+
+    val xa = HikariTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth").unsafePerformSync
+    xa.configure(hx => Task(hx.setMaximumPoolSize(Runtime.getRuntime().availableProcessors()))).unsafePerformSync
+    xa.configure(hx =>Task(hx.setPoolName(name))).unsafePerformSync
+    xa
+}
 
   def save(obj: Any, path: String) = {
     val oos = new ObjectOutputStream(new FileOutputStream(path))

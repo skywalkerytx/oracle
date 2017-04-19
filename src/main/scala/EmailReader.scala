@@ -105,6 +105,13 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     return false
   }
 
+  def Length() = {
+    val prop = Prop()
+    val store = prop.store
+    val inbox = prop.inbox
+    inbox.getMessageCount - inbox.getDeletedMessageCount
+  }
+
   protected def Prop() = {
     val props = System.getProperties
     props.setProperty("mail.store.protocol", "imaps")
@@ -114,13 +121,6 @@ class EmailReader(username: String = "908910385@qq.com", password: String = "yav
     val inbox: Folder = store.getFolder("INBOX")
     inbox.open(Folder.READ_ONLY)
     EmailProp(store, inbox)
-  }
-
-  def Length() = {
-    val prop = Prop()
-    val store = prop.store
-    val inbox = prop.inbox
-    inbox.getMessageCount - inbox.getDeletedMessageCount
   }
 
 

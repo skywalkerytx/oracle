@@ -14,16 +14,16 @@ import scala.language.postfixOps
   */
 class ZipReader {
 
+  val xa = utils.GetHikariTransactor("zip-pool")
+  
   def clear() = {
-    val dmt = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    import dmt.yolo._
-    sql"delete from raw;delete from rawindex;delete from rawconcept;".update.run.transact(dmt).unsafePerformSync
+    sql"delete from raw;delete from rawindex;delete from rawconcept;".update.run.transact(xa).unsafePerformSync
   }
 
 
   def ReadAll() = {
 
-    val ziplist = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip"))
+    val ziplist = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).par
     ziplist foreach {
       file =>
         val csvs = reader(file.getPath).toArray
@@ -47,13 +47,9 @@ class ZipReader {
             }
         }
     }
-
-
   }
 
   private def InsertStockRaw(csv: List[String]) = {
-    val dmt = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    import dmt.yolo._
     val data = csv.map {
       line =>
         val cols = line.split(",")
@@ -64,7 +60,7 @@ class ZipReader {
           cols(38).toFloat, cols(39).toFloat, cols(40).toFloat, cols(41).toFloat, cols(42).toFloat,
           cols(43).toFloat, cols(44).toFloat, cols(45).toFloat, cols(46).toFloat, cols(47).toFloat)
     }
-    RawStockBatch(data).transact(dmt).unsafePerformSync
+    RawStockBatch(data).transact(xa).unsafePerformSync
   }
 
   private def RawStockBatch(data: List[RawStock]): ConnectionIO[Int] = {
@@ -82,15 +78,13 @@ class ZipReader {
   }
 
   private def InsertIndexRaw(csv: List[String]) = {
-    val dmt = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    import dmt.yolo._
     val data = csv.map {
       line =>
         val cols = line.split(",")
         RawIndex(cols(0), cols(1), cols(2).toFloat, cols(3).toFloat, cols(4).toFloat, cols(5).toFloat,
           cols(6).toFloat, cols(7).toFloat, cols(8).toFloat)
     }
-    RawIndexBatch(data).transact(dmt).unsafePerformSync
+    RawIndexBatch(data).transact(xa).unsafePerformSync
   }
 
   private def RawIndexBatch(data: List[RawIndex]) = {
@@ -104,8 +98,6 @@ class ZipReader {
   }
 
   private def InsertConceptRaw(csv: List[String]) = {
-    val dmt = DriverManagerTransactor[Task]("org.postgresql.Driver", "jdbc:postgresql:nova", "nova", "emeth")
-    import dmt.yolo._
     val data = csv.map {
       line =>
         val cols = line.split(",")
@@ -116,7 +108,7 @@ class ZipReader {
           RawConcept(cols(0), cols(1).toFloat, cols(2).toFloat, cols(3).toFloat, cols(4).toFloat, cols(5).toFloat,
             cols(6).toFloat, cols(7).toFloat, cols(8))
     }
-    RawConceptBatch(data).transact(dmt).unsafePerformSync
+    RawConceptBatch(data).transact(xa).unsafePerformSync
   }
 
   private def RawConceptBatch(data: List[RawConcept]) = {

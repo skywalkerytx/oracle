@@ -98,6 +98,17 @@ CREATE INDEX IF NOT EXISTS Vector_code_idx ON Vector(code);
 
 CREATE INDEX IF NOT EXISTS Vector_date_idx ON Vector(date);
 
+CREATE TABLE IF NOT EXISTS dVector(
+code char(9),
+date char(11),
+vector float[],
+PRIMARY KEY (code,date)
+);
+
+CREATE INDEX IF NOT EXISTS dVector_code_idx ON dVector(code);
+
+CREATE INDEX IF NOT EXISTS dVector_date_idx ON dVector(date);
+
 CREATE TABLE IF NOT EXISTS Label(
 code char(9),
 date char(11),
