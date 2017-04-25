@@ -3,6 +3,8 @@ from datetime import datetime
 from functools import reduce
 from multiprocessing.pool import Pool
 import os
+import pygame
+import time
 
 import numpy as np
 import psycopg2
@@ -174,12 +176,10 @@ def quickload():
     return x_train, x_test, y_train, y_test
 
 def ring():
-    import pygame
     pygame.mixer.init()
     pygame.mixer.music.load("clock.mp3")
     pygame.mixer.music.play()
-    import time
-    time.sleep(1)
+    time.sleep(2)
     print('finished!')
 
 
@@ -187,7 +187,7 @@ def logisticlayerwithrelu(x, num_hidden, num_classes, name, with_relu=True,with_
     num_hidden = int(num_hidden)
     num_classes = int(num_classes)
     with tf.name_scope(name):
-        W = tf.Variable(tf.random_normal((num_hidden, num_classes), stddev=1.0 / math.sqrt(num_hidden)))
+        W = tf.Variable(tf.random_normal((num_hidden, num_classes), stddev=0.01))
         b = tf.Variable(tf.random_normal((num_classes,)))
         layer = tf.matmul(x, W) + b
         if with_relu:
@@ -216,7 +216,7 @@ def network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes):
     with tf.name_scope('lstm'):
         net = tf.split(net, n_steps, 0)  # (TimeStep*BatchSize,Features) => [(BatchSize,Features)]*TimeStep
 
-        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(5)])
+        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(3)])
         output, state = tf.contrib.rnn.static_rnn(lstm, net, dtype=tf.float32)
         net = output[-1]
 
@@ -264,9 +264,9 @@ def tfplayground():
         accuracy = tf.equal(tf.arg_max(net, 1), tf.arg_max(label, 1))
         accuracy = tf.reduce_mean(tf.to_float(accuracy))
 
-    with tf.name_scope('log'):
+    with tf.name_scope('log-by-batch'):
         log_accuracy = tf.summary.scalar('accuracy-by-batch',accuracy)
-        log_loss = tf.summary.scalar('loss-by-batch',accuracy)
+        log_loss = tf.summary.scalar('loss-by-batch',loss_func)
 
 
     codes = getcode()
@@ -275,27 +275,35 @@ def tfplayground():
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        acc = 0.0
+        Acc = 0.0
         for epoch in range(epochs):
-            acc = 0.0
+            Acc = 0.0
+            Loss = 0.0
             for i in range(totalbatch):
                 x, y = rnnbatch(codes[i], BatchSize)
-                _,acc_sum,loss_sum,batchacc = sess.run([opt,log_accuracy,log_loss,accuracy],
+                _,acc_sum,loss_sum,batchacc,batchloss = sess.run([opt,log_accuracy,log_loss,accuracy,loss_func],
                          feed_dict = {
                              rawfeature:x,
                              rawlabel:y
                          }
                          )
-                acc += batchacc
+                Acc += batchacc
+                Loss += batchloss
                 SummaryWriter.add_summary(acc_sum,epoch*totalbatch+i)
                 SummaryWriter.add_summary(loss_sum,epoch*totalbatch+i)
 
             #summary per epoch
-            acc /=totalbatch
-            acc_sum = tf.Summary()
-            acc_sum.value.add(tag='train-accuracy',simple_value=acc)
-            SummaryWriter.add_summary(acc_sum,epoch)
-            print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],acc))
+            Acc /=totalbatch
+            Loss /= totalbatch
+            with tf.name_scope('log-by-epoch'):
+                acc_sum = tf.Summary()
+                loss_sum = tf.Summary()
+                acc_sum.value.add(tag='train-accuracy', simple_value=Acc)
+                loss_sum.value.add(tag='train-loss', simple_value=Loss)
+                SummaryWriter.add_summary(acc_sum, epoch)
+                SummaryWriter.add_summary(loss_sum, epoch)
+            print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],Acc))
+            time.sleep(5) #my graphic card's fan speed is fucked when training
 
 
 
