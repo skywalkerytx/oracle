@@ -101,23 +101,28 @@ object Main {
   }
 
   def ShouldDownload: Boolean = {
-    val today = new DateTime()
-    var detectday = today
-    val latest = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).map(_.toString).sorted.last
-    val fmt = DateTimeFormat.forPattern("yyyyMMdd")
-    while (datetofile(detectday.toString(fmt)) != latest) {
-      if (detectday == today) {
-        if (today.hourOfDay.get >= 18)
-          return true
-      }
-      else {
-        if (detectday.dayOfWeek.get() < 6) {
-          return true
+    try {
+      val today = new DateTime()
+      var detectday = today
+      val latest = utils.recursiveListFiles(new File("data/holo")).filter(_.getName.endsWith(".zip")).map(_.toString).sorted.last
+      val fmt = DateTimeFormat.forPattern("yyyyMMdd")
+      while (datetofile(detectday.toString(fmt)) != latest) {
+        if (detectday == today) {
+          if (today.hourOfDay.get >= 18)
+            return true
         }
+        else {
+          if (detectday.dayOfWeek.get() < 6) {
+            return true
+          }
+        }
+        detectday = detectday.minusDays(1)
       }
-      detectday = detectday.minusDays(1)
+      false
     }
-    false
+    catch {
+      case ex:Throwable => true
+    }
   }
 
   def datetofile(s: String) = "data/holo/overview-push-" + s + ".zip"
