@@ -2,10 +2,12 @@ import math
 from datetime import datetime
 from functools import reduce
 from multiprocessing.pool import Pool
+import os
 
 import numpy as np
 import psycopg2
 import tensorflow as tf
+
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
@@ -47,15 +49,15 @@ def percode(code):
     for i in range(len(res)):
         rawfeature[i] = res[i][0]
         label[i] = res[i][1]
-    feature = np.zeros((len(rawfeature) - 4, 9 * len(rawfeature[0])))
+    feature = np.zeros((len(rawfeature) - 4, 5 * len(rawfeature[0])))
     for i in range(4, len(rawfeature)):
         a = rawfeature[i]
         b = rawfeature[i - 1]
         c = rawfeature[i - 2]
         d = rawfeature[i - 3]
         e = rawfeature[i - 4]
-        feature[i - 4] = concat(e, b, c, d, a)
-        # feature[i-4] = np.concatenate((e,d,c,b,a),axis=0)
+        #feature[i - 4] = concat(e, b, c, d, a)
+        feature[i-4] = np.concatenate((e,d,c,b,a),axis=0)
     return feature, label[4:]
 
 
@@ -171,29 +173,6 @@ def quickload():
     y_test = np.load('data/mx/y_test.npy')
     return x_train, x_test, y_train, y_test
 
-
-def customizedfbeta(preds, dtrain):
-    label = dtrain.get_label()
-
-    threshold = 0.5
-
-    TP = FP = TN = FN = 0.0
-    for i in range(len(preds)):
-        if preds[i] > threshold:
-            if label[i] > threshold:
-                TP += 1
-            else:
-                FP += 1
-        else:
-            if label[i] < threshold:
-                TN += 1
-            else:
-                FN += 1
-    precision = TP / (TP + FP)
-    recall = TP / (TP + FN)
-    return 'F1', 2 * precision * recall / (precision + recall)
-
-
 def ring():
     import pygame
     pygame.mixer.init()
@@ -204,7 +183,7 @@ def ring():
     print('finished!')
 
 
-def logisticlayerwithrelu(x, num_hidden, num_classes, name, with_relu=True):
+def logisticlayerwithrelu(x, num_hidden, num_classes, name, with_relu=True,with_dropout = False,keep_prob = 0.9):
     num_hidden = int(num_hidden)
     num_classes = int(num_classes)
     with tf.name_scope(name):
@@ -213,6 +192,8 @@ def logisticlayerwithrelu(x, num_hidden, num_classes, name, with_relu=True):
         layer = tf.matmul(x, W) + b
         if with_relu:
             layer = tf.nn.relu(layer)
+        if with_dropout:
+            layer = tf.nn.dropout(layer,keep_prob=keep_prob)
     return layer
 
 
@@ -228,102 +209,106 @@ def nextbatch(x, y, BatchSize, batch_num, shuffle=False):
     else:
         return x[BatchSize * batch_num:BatchSize * (batch_num + 1)], y[
                                                                      BatchSize * batch_num:BatchSize * (batch_num + 1)]
+def network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes):
 
+    net = logisticlayerwithrelu(feature,n_hidden,n_hidden,name='logistic-with-relu')
 
-# noinspection PyTypeChecker
+    with tf.name_scope('lstm'):
+        net = tf.split(net, n_steps, 0)  # (TimeStep*BatchSize,Features) => [(BatchSize,Features)]*TimeStep
+
+        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(5)])
+        output, state = tf.contrib.rnn.static_rnn(lstm, net, dtype=tf.float32)
+        net = output[-1]
+
+    net = logisticlayerwithrelu(net,n_hidden,n_classes,name='final-logisitc',with_relu=False)
+    net = tf.nn.softmax(net)
+    return net
+
+def getcode():
+    for root, dirs, files in os.walk('data/numpy/feature/'):
+        return [file[0:9] for file in files]
+
 def tfplayground():
-    x_train, x_test, y_train, y_test = quickload()
 
     tf_log_path = 'data/tf_log/' + str(datetime.now())[0:19].replace(':', '-')
 
     epochs = 60
+    BatchSize = 140
 
-    BatchSize = 256
-    FeatureLength = 3456
-    num_classes = 2
+    n_steps = 5
+    n_inputs = 384
+    n_hidden = 384
+    n_classes = 2
+
     LearningRate = 0.01
-    num_hidden_layers = 6
-    num_hidden_units = 1728
 
     with tf.name_scope('feature'):
-        feature = tf.placeholder(tf.float32, (BatchSize, FeatureLength), name='input_feature')
+        rawfeature = tf.placeholder(tf.float32, (BatchSize, n_steps*n_inputs), name='rawinput')  # (BatchSize,TimeStep*Features)
+        feature = tf.reshape(rawfeature, (BatchSize, n_steps, n_inputs))  # (BatchSize,TimeStep,Features)
+        feature = tf.transpose(feature, (1, 0, 2))  # (TimeStep,BatchSize,Features)
+        feature = tf.reshape(feature, (-1, n_hidden)) #(TimeStep*BatchSize,Features)
+
 
     with tf.name_scope('label'):
         rawlabel = tf.to_int32(tf.placeholder(tf.float32, (BatchSize,), name='rawlabel'))
-        label = tf.one_hot(rawlabel, num_classes, name='onehot')
+        label = tf.one_hot(rawlabel, n_classes, name='onehot')
 
-    net = logisticlayerwithrelu(feature, FeatureLength, num_hidden_units, 'layer1')
+    net = network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes)
 
-    for i in range(2, num_hidden_layers):
-        net = logisticlayerwithrelu(net, num_hidden_units, num_hidden_units, 'layer' + str(i))
+    with tf.name_scope('loss-function'):
+        loss_func = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=net))
 
-    net = logisticlayerwithrelu(net, num_hidden_units, num_classes, 'layer' + str(num_hidden_layers), with_relu=True)
-
-    with tf.name_scope('softmax output'):
-        out = tf.nn.softmax(net)
+    opt = tf.train.GradientDescentOptimizer(learning_rate=LearningRate).minimize(loss_func)
 
     with tf.name_scope('metrics'):
-        accuracy = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(out, 1), tf.argmax(label, 1))))
+        accuracy = tf.equal(tf.arg_max(net, 1), tf.arg_max(label, 1))
+        accuracy = tf.reduce_mean(tf.to_float(accuracy))
 
-    with tf.name_scope('loss'):
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out, labels=label))
+    with tf.name_scope('log'):
+        log_accuracy = tf.summary.scalar('accuracy-by-batch',accuracy)
+        log_loss = tf.summary.scalar('loss-by-batch',accuracy)
 
-    with tf.name_scope('optimizer'):
-        opt = tf.train.GradientDescentOptimizer(learning_rate=LearningRate).minimize(loss)
 
-    summary_loss = tf.summary.scalar('loss-by-batch', loss)
-    summary_train_acc = tf.summary.scalar('train-accuracy-by-batch', accuracy)
-    # summary_val_acc = tf.summary.scalar('validation-acc',accuracy)
-    SummaryWriter = tf.summary.FileWriter(tf_log_path, graph=tf.get_default_graph())
-
-    init = tf.global_variables_initializer()
+    codes = getcode()
+    totalbatch = len(codes)
+    SummaryWriter = tf.summary.FileWriter(tf_log_path,graph=tf.get_default_graph())
 
     with tf.Session() as sess:
-        sess.run(init)
-        ring()
-        # train
-        trainbatchsize = int(len(x_train) / BatchSize)
-        valbatchsize = int(len(x_test) / BatchSize)
+        sess.run(tf.global_variables_initializer())
+        acc = 0.0
         for epoch in range(epochs):
-            for i in range(trainbatchsize):
-                batchx, batchy = nextbatch(x_train, y_train, BatchSize, i, shuffle=True)
-                _, acc_summary, loss_summary = sess.run([opt, summary_train_acc, summary_loss], feed_dict={
-                    feature: batchx,
-                    rawlabel: batchy
-                })
-                SummaryWriter.add_summary(acc_summary, epoch * trainbatchsize + i)
-                SummaryWriter.add_summary(loss_summary, epoch * trainbatchsize + i)
-            # log metrics to tensorboard
+            acc = 0.0
+            for i in range(totalbatch):
+                x, y = rnnbatch(codes[i], BatchSize)
+                _,acc_sum,loss_sum,batchacc = sess.run([opt,log_accuracy,log_loss,accuracy],
+                         feed_dict = {
+                             rawfeature:x,
+                             rawlabel:y
+                         }
+                         )
+                acc += batchacc
+                SummaryWriter.add_summary(acc_sum,epoch*totalbatch+i)
+                SummaryWriter.add_summary(loss_sum,epoch*totalbatch+i)
 
-            batchaccuracy = []
-            for i in range(trainbatchsize):
-                batchx, batchy = nextbatch(x_train, y_train, BatchSize, i)
-                log_acc = sess.run(accuracy, feed_dict={
-                    feature: batchx,
-                    rawlabel: batchy
-                })
-                batchaccuracy.append(log_acc)
-            train_acc = np.mean(batchaccuracy)
-            acc_summary = tf.Summary()
-            acc_summary.value.add(tag='train-accuracy', simple_value=train_acc)
-            SummaryWriter.add_summary(acc_summary, epoch)
+            #summary per epoch
+            acc /=totalbatch
+            acc_sum = tf.Summary()
+            acc_sum.value.add(tag='train-accuracy',simple_value=acc)
+            SummaryWriter.add_summary(acc_sum,epoch)
+            print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],acc))
 
-            batchaccuracy = []
-            for i in range(valbatchsize):
-                batchx, batchy = nextbatch(x_train, y_train, BatchSize, i)
-                log_acc = sess.run(accuracy, feed_dict={
-                    feature: batchx,
-                    rawlabel: batchy
-                })
-                batchaccuracy.append(log_acc)
-            val_acc = np.mean(batchaccuracy)
-            acc_summary = tf.Summary()
-            acc_summary.value.add(tag='val-accuracy', simple_value=val_acc)
-            SummaryWriter.add_summary(acc_summary, epoch)
-            print('epoch %d completed at %s\n    train-acc: %.4f\n    val-acc: %.4f' % (
-                epoch, str(datetime.now())[0:19].replace(':', '-'), float(train_acc), float(val_acc)))
 
-    ring()
+
+
+
+def rnnbatch(code,BatchSize):
+    x = np.load('data/numpy/feature/'+code+'.npy')
+    size = len(x)
+    y = np.load('data/numpy/label/'+code+'.npy')
+    pick = np.random.randint(0,len(x),(BatchSize,))
+    x = np.asarray([x[i] for i in pick])
+    y = np.asarray([y[i] for i in pick])
+    return x,y
 
 
 def rnnstats():
@@ -336,9 +321,12 @@ def rnnstats():
         print(np.max(lens))
 
 
+
 if __name__ == '__main__':
     # load()
     # ring()
-    # tfplayground()
-    preparernn()
-    rnnstats()
+    #tfplayground()
+    #preparernn()
+    #rnnstats()
+    tfplayground()
+    #print(np.load('data/numpy/feature/sh600000 .npy').shape)
