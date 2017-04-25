@@ -64,6 +64,8 @@ def rnnpercode(code):
         feature, label = percode(code)
     except TypeError:
         return
+    if len(feature) < 142:
+        return
     np.save('data/numpy/feature/' + code, feature)
     np.save('data/numpy/label/' + code, label)
 
@@ -324,8 +326,19 @@ def tfplayground():
     ring()
 
 
+def rnnstats():
+    import os
+
+    for root, dirs, files in os.walk('data/numpy/feature/'):
+        lens = [len(np.load('data/numpy/feature/' + file)) for file in files]
+        print(np.min(lens))
+        print(np.mean(lens))
+        print(np.max(lens))
+
+
 if __name__ == '__main__':
     # load()
     # ring()
     # tfplayground()
     preparernn()
+    rnnstats()
