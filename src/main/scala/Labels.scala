@@ -20,16 +20,16 @@ class Labels {
 
   def CheckB(a:rawlabel,b:rawlabel) = {
     if(a.close*amp<=b.mx)
-      1
+      true
     else
-      0
+      false
   }
 
   def CheckA(a:rawlabel,b:rawlabel) = {
     if(a.op*amp<=b.mx)
-      1
+      true
     else
-      0
+      false
   }
 
   def CodeAvailable:Query0[String] =
@@ -62,7 +62,7 @@ class Labels {
 
   def LabelB = GenLabel(CheckB)
 
-  def GenLabel(checkfunc:(rawlabel,rawlabel) => Int) = {
+  def GenLabel(checkfunc:(rawlabel,rawlabel) => Boolean) = {
     val codes = CodeAvailable.list.transact(xa).unsafePerformSync
     codes.map{
       code=>
@@ -72,9 +72,12 @@ class Labels {
               Real(Key(code,date)).unique.transact(xa).unsafePerformSync
         }
         val buffer = new ArrayBuffer[(String,String,Int)]()
-        for ( i <- 0 until reals.length -2) {
-
-          buffer.append((code,dates(i),checkfunc(reals(i+1),reals(i+2))))
+        for ( i <- 0 until reals.length -4) {
+          var flag = checkfunc(reals(i+1),reals(i+2))
+          flag = flag || checkfunc(reals(i+1),reals(i+3))
+          flag = flag || checkfunc(reals(i+1),reals(i+4))
+          val value = if (flag) 1 else 0
+          buffer.append((code,dates(i),value))
         }
         buffer
     }.reduce{
