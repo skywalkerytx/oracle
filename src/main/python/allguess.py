@@ -15,6 +15,8 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 
 
+n_steps = 5
+
 def getcon():
     conn = psycopg2.connect(database='nova', user='nova', password='emeth')
     cur = conn.cursor()
@@ -235,12 +237,13 @@ def tfplayground():
     tf_log_path = 'data/tf_log/' + str(datetime.now())[0:19].replace(':', '-')
 
     epochs = 60
-    BatchSize = 140
+    BatchSize = 145-n_steps
 
-    n_steps = 5
+
     n_inputs = 384
     n_hidden = 384
     n_classes = 2
+    max_clip = 10
 
     LearningRate = 1e-4
 
@@ -264,9 +267,10 @@ def tfplayground():
         optimizer = tf.train.GradientDescentOptimizer(LearningRate)
         # Op to calculate every variable gradient
         grads = optimizer.compute_gradients(loss_func)
-        grads = [(tf.clip_by_norm(grad,10), var) for grad,var in grads]
+        #grads = [(tf.clip_by_norm(grad,10), var) for grad,var in grads]
+        clipped = [(tf.clip_by_value(grad,-max_clip,max_clip), var) for grad, var in grads]
         # Op to update all variables according to their gradient
-        apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
+        apply_grads = optimizer.apply_gradients(grads_and_vars=clipped)
 
 
     with tf.name_scope('metrics'):
@@ -280,7 +284,7 @@ def tfplayground():
     with tf.name_scope('hista'):
         for var in tf.trainable_variables():
             tf.summary.histogram(var.name,var)
-        for grad,var in grads:
+        for grad,var in clipped:
             tf.summary.histogram(var.name+'/gradient',grad)
 
     merged_summary_op = tf.summary.merge_all()
