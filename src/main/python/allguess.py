@@ -51,6 +51,7 @@ def percode(code):
     for i in range(len(res)):
         rawfeature[i] = res[i][0]
         label[i] = res[i][1]
+    rawfeature = preprocess(rawfeature)
     feature = np.zeros((len(rawfeature) - 4, 5 * len(rawfeature[0])))
     for i in range(4, len(rawfeature)):
         a = rawfeature[i]
@@ -141,12 +142,13 @@ def Normalize(X):
     normalizer = preprocessing.Normalizer()
     return normalizer.fit_transform(X)
 
+def pca(X):
+    pca = PCA()
+    return PCA.fit_transform(X)
 
 def preprocess(X):
     X = minmax(X)
-    pca = PCA()
-    pca.fit(X)
-    X = pca.transform(X)
+    X = pca(X)
     X = Normalize(X)
     return X
 
@@ -209,14 +211,14 @@ def nextbatch(x, y, BatchSize, batch_num, shuffle=False):
     else:
         return x[BatchSize * batch_num:BatchSize * (batch_num + 1)], y[
                                                                      BatchSize * batch_num:BatchSize * (batch_num + 1)]
-def network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes):
+def network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes,num_lstm_cell):
 
     net = logisticlayerwithrelu(feature,n_hidden,n_hidden,name='logistic-with-relu')
 
     with tf.name_scope('lstm'):
         net = tf.split(net, n_steps, 0)  # (TimeStep*BatchSize,Features) => [(BatchSize,Features)]*TimeStep
 
-        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(3)])
+        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(num_lstm_cell)])
         output, state = tf.contrib.rnn.static_rnn(lstm, net, dtype=tf.float32)
         net = output[-1]
 
@@ -240,7 +242,7 @@ def tfplayground():
     n_hidden = 384
     n_classes = 2
 
-    LearningRate = 0.01
+    LearningRate = 1e-4
 
     with tf.name_scope('feature'):
         rawfeature = tf.placeholder(tf.float32, (BatchSize, n_steps*n_inputs), name='rawinput')  # (BatchSize,TimeStep*Features)
@@ -253,12 +255,19 @@ def tfplayground():
         rawlabel = tf.to_int32(tf.placeholder(tf.float32, (BatchSize,), name='rawlabel'))
         label = tf.one_hot(rawlabel, n_classes, name='onehot')
 
-    net = network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes)
+    net = network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes,num_lstm_cell=5)
 
     with tf.name_scope('loss-function'):
         loss_func = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=net))
 
-    opt = tf.train.GradientDescentOptimizer(learning_rate=LearningRate).minimize(loss_func)
+    with tf.name_scope('Optimizer'):
+        optimizer = tf.train.GradientDescentOptimizer(LearningRate)
+        # Op to calculate every variable gradient
+        grads = optimizer.compute_gradients(loss_func)
+        grads = [(tf.clip_by_norm(grad,10), var) for grad,var in grads]
+        # Op to update all variables according to their gradient
+        apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
+
 
     with tf.name_scope('metrics'):
         accuracy = tf.equal(tf.arg_max(net, 1), tf.arg_max(label, 1))
@@ -268,6 +277,13 @@ def tfplayground():
         log_accuracy = tf.summary.scalar('accuracy-by-batch',accuracy)
         log_loss = tf.summary.scalar('loss-by-batch',loss_func)
 
+    with tf.name_scope('hista'):
+        for var in tf.trainable_variables():
+            tf.summary.histogram(var.name,var)
+        for grad,var in grads:
+            tf.summary.histogram(var.name+'/gradient',grad)
+
+    merged_summary_op = tf.summary.merge_all()
 
     codes = getcode()
     totalbatch = len(codes)
@@ -281,7 +297,7 @@ def tfplayground():
             Loss = 0.0
             for i in range(totalbatch):
                 x, y = rnnbatch(codes[i], BatchSize)
-                _,acc_sum,loss_sum,batchacc,batchloss = sess.run([opt,log_accuracy,log_loss,accuracy,loss_func],
+                _,merged_sum,batchacc,batchloss = sess.run([apply_grads,merged_summary_op,accuracy,loss_func],
                          feed_dict = {
                              rawfeature:x,
                              rawlabel:y
@@ -289,8 +305,9 @@ def tfplayground():
                          )
                 Acc += batchacc
                 Loss += batchloss
-                SummaryWriter.add_summary(acc_sum,epoch*totalbatch+i)
-                SummaryWriter.add_summary(loss_sum,epoch*totalbatch+i)
+                SummaryWriter.add_summary(merged_sum,epoch*totalbatch+i)
+                #SummaryWriter.add_summary(acc_sum,epoch*totalbatch+i)
+                #SummaryWriter.add_summary(loss_sum,epoch*totalbatch+i)
 
             #summary per epoch
             Acc /=totalbatch
@@ -303,7 +320,7 @@ def tfplayground():
                 SummaryWriter.add_summary(acc_sum, epoch)
                 SummaryWriter.add_summary(loss_sum, epoch)
             print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],Acc))
-            time.sleep(5) #my graphic card's fan speed is fucked when training
+            #time.sleep(5) #my graphic card's fan speed is fucked when training
 
 
 
@@ -327,14 +344,16 @@ def rnnstats():
         print(np.min(lens))
         print(np.mean(lens))
         print(np.max(lens))
+        feature = np.load('data/numpy/feature/sh600000 .npy')
+        print(feature)
+        print(feature.shape)
 
 
 
 if __name__ == '__main__':
     # load()
     # ring()
-    #tfplayground()
     #preparernn()
     #rnnstats()
     tfplayground()
-    #print(np.load('data/numpy/feature/sh600000 .npy').shape)
+
