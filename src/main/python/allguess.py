@@ -136,22 +136,27 @@ def Scale(X):
     return preprocessing.StandardScaler().fit_transform(X)
 
 
-def minmax(X):
-    return preprocessing.MinMaxScaler(feature_range=(0, 1)).fit_transform(X)
+def minmax(X,lower_bound = -1,upper_bound = 1):
+    return preprocessing.MinMaxScaler(feature_range=(lower_bound, upper_bound)).fit_transform(X)
 
 
 def Normalize(X):
     normalizer = preprocessing.Normalizer()
-    return normalizer.fit_transform(X)
+    normalizer.fit(X)
+    return normalizer.transform(X)
 
 def pca(X):
     pca = PCA()
-    return PCA.fit_transform(X)
+    pca.fit(X)
+
+    return pca.transform(X)
 
 def preprocess(X):
     X = minmax(X)
-    X = pca(X)
     X = Normalize(X)
+    X = minmax(X)
+    X = Scale(X)
+    X = minmax(X)
     return X
 
 
@@ -219,11 +224,15 @@ def network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes,num_lstm
 
     with tf.name_scope('lstm'):
         net = tf.split(net, n_steps, 0)  # (TimeStep*BatchSize,Features) => [(BatchSize,Features)]*TimeStep
-
-        lstm = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0) for _ in range(num_lstm_cell)])
+        cell_list = []
+        for _ in range(num_lstm_cell):
+            #cell_list.append(tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0))
+            newcell = tf.contrib.rnn.LSTMCell(num_units = n_hidden,forget_bias = 1.0,activation = tf.nn.elu)
+            cell_list.append(newcell)
+        lstm = tf.contrib.rnn.MultiRNNCell(cell_list)
         output, state = tf.contrib.rnn.static_rnn(lstm, net, dtype=tf.float32)
         net = output[-1]
-
+    net = tf.nn.dropout(net,keep_prob=0.9)
     net = logisticlayerwithrelu(net,n_hidden,n_classes,name='final-logisitc',with_relu=False)
     net = tf.nn.softmax(net)
     return net
@@ -236,7 +245,7 @@ def tfplayground():
 
     tf_log_path = 'data/tf_log/' + str(datetime.now())[0:19].replace(':', '-')
 
-    epochs = 60
+    epochs = 600
     BatchSize = 145-n_steps
 
 
@@ -245,7 +254,7 @@ def tfplayground():
     n_classes = 2
     max_clip = 10
 
-    LearningRate = 1e-4
+    LearningRate = 0.01
 
     with tf.name_scope('feature'):
         rawfeature = tf.placeholder(tf.float32, (BatchSize, n_steps*n_inputs), name='rawinput')  # (BatchSize,TimeStep*Features)
@@ -255,8 +264,8 @@ def tfplayground():
 
 
     with tf.name_scope('label'):
-        rawlabel = tf.to_int32(tf.placeholder(tf.float32, (BatchSize,), name='rawlabel'))
-        label = tf.one_hot(rawlabel, n_classes, name='onehot')
+        rawlabel = tf.placeholder(tf.float32, (BatchSize,), name='rawlabel')
+        label = tf.one_hot(tf.to_int32(rawlabel), n_classes, name='onehot')
 
     net = network(feature,label,BatchSize,n_steps,n_inputs,n_hidden,n_classes,num_lstm_cell=5)
 
@@ -267,8 +276,8 @@ def tfplayground():
         optimizer = tf.train.GradientDescentOptimizer(LearningRate)
         # Op to calculate every variable gradient
         grads = optimizer.compute_gradients(loss_func)
-        #grads = [(tf.clip_by_norm(grad,10), var) for grad,var in grads]
-        clipped = [(tf.clip_by_value(grad,-max_clip,max_clip), var) for grad, var in grads]
+        clipped = [(tf.clip_by_norm(grad,max_clip), var) for grad,var in grads]
+        #clipped = [(tf.clip_by_value(grad,-max_clip,max_clip), var) for grad, var in grads]
         # Op to update all variables according to their gradient
         apply_grads = optimizer.apply_gradients(grads_and_vars=clipped)
 
@@ -280,13 +289,15 @@ def tfplayground():
     with tf.name_scope('log-by-batch'):
         log_accuracy = tf.summary.scalar('accuracy-by-batch',accuracy)
         log_loss = tf.summary.scalar('loss-by-batch',loss_func)
-
-    with tf.name_scope('hista'):
+    '''
+    with tf.name_scope('weights'):
         for var in tf.trainable_variables():
             tf.summary.histogram(var.name,var)
+    
+    with tf.name_scope('grads'):
         for grad,var in clipped:
             tf.summary.histogram(var.name+'/gradient',grad)
-
+    '''
     merged_summary_op = tf.summary.merge_all()
 
     codes = getcode()
@@ -319,25 +330,28 @@ def tfplayground():
             with tf.name_scope('log-by-epoch'):
                 acc_sum = tf.Summary()
                 loss_sum = tf.Summary()
-                acc_sum.value.add(tag='train-accuracy', simple_value=Acc)
-                loss_sum.value.add(tag='train-loss', simple_value=Loss)
+                acc_sum.value.add(tag='log-by-epoch/train-accuracy', simple_value=Acc)
+                loss_sum.value.add(tag='log-by-epoch/train-loss', simple_value=Loss)
                 SummaryWriter.add_summary(acc_sum, epoch)
                 SummaryWriter.add_summary(loss_sum, epoch)
             print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],Acc))
-            #time.sleep(5) #my graphic card's fan speed is fucked when training
+            time.sleep(15) #my graphic card's fan speed is fucked when training
 
 
 
 
 
-def rnnbatch(code,BatchSize):
+def rnnbatch(code,BatchSize,shuffle = True):
     x = np.load('data/numpy/feature/'+code+'.npy')
     size = len(x)
     y = np.load('data/numpy/label/'+code+'.npy')
-    pick = np.random.randint(0,len(x),(BatchSize,))
-    x = np.asarray([x[i] for i in pick])
-    y = np.asarray([y[i] for i in pick])
-    return x,y
+    if shuffle:
+        pick = np.random.randint(0, len(x), (BatchSize,))
+        x = np.asarray([x[i] for i in pick])
+        y = np.asarray([y[i] for i in pick])
+        return x, y
+    else:
+        return x[size-BatchSize:size],y[size-BatchSize:size]
 
 
 def rnnstats():
@@ -348,11 +362,21 @@ def rnnstats():
         print(np.min(lens))
         print(np.mean(lens))
         print(np.max(lens))
-        feature = np.load('data/numpy/feature/sh600000 .npy')
-        print(feature)
-        print(feature.shape)
+        features = np.load('data/numpy/feature/sh600000 .npy')
+        print(features)
+        print(features.shape)
+        allpos = True
 
+        for feature in features:
+            for i in feature:
+                if i<0:
+                    allpos = False
+                    break
+            if not allpos:
+                break
 
+        print(allpos)
+        input('finished reading?')
 
 if __name__ == '__main__':
     # load()
