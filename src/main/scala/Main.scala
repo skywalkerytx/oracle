@@ -21,6 +21,7 @@ import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 /**
   * Created by nova on 16-12-19.
   */
+//noinspection SqlDialectInspection
 
 
 object Main {
