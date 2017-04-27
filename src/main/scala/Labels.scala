@@ -1,4 +1,5 @@
 import utils.Features
+import GlobalConfig.DaystoPredict
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
@@ -72,10 +73,14 @@ class Labels {
               Real(Key(code,date)).unique.transact(xa).unsafePerformSync
         }
         val buffer = new ArrayBuffer[(String,String,Int)]()
-        for ( i <- 0 until reals.length -4) {
-          var flag = checkfunc(reals(i+1),reals(i+2))
-          flag = flag || checkfunc(reals(i+1),reals(i+3))
-          flag = flag || checkfunc(reals(i+1),reals(i+4))
+        for ( i <- 0 until reals.length -(DaystoPredict+1)) {
+          val flag = (0 until DaystoPredict).map{
+            delta=>
+              checkfunc(reals(i+delta+1),reals(i+delta+2))
+          }.reduce{
+            (day1,day2)=>
+              day1||day2
+          }
           val value = if (flag) 1 else 0
           buffer.append((code,dates(i),value))
         }
