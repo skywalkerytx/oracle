@@ -1,6 +1,5 @@
-from pydoc import help
+# coding=utf-8
 import psycopg2
-from scipy.stats.stats import pearsonr
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -54,50 +53,53 @@ plt.subplot(212)
 plt.plot(X,recall,'b')
 plt.show()
 
-cur.execute('select distinct date from raw order by date desc limit 1')
-latest = cur.fetchone()[0]
+latests = []
+GeneratePast = True
 
-print(latest)
+if GeneratePast:
+    latests = ['2017-04-26', '2017-04-27', '2017-04-28']
+else:
+    cur.execute('SELECT DISTINCT date FROM raw ORDER BY date DESC LIMIT 1')
+    latest = [cur.fetchone()[0]]
 
-cur.execute("""
-select
-code,k 
-from 
-raw
-WHERE
-1=1
-and raw.kdjcross='金叉'
-and raw.macdcross='金叉'
-and date = %s 
-order by k desc
-""",(latest,))
-print(cur.query)
-result = cur.fetchall()
-#print(result)
-from datetime import datetime
-filename = 'data/result/'+str(datetime.now())[0:10]+'.csv'
-f = open(filename,'w')
-f.write('code,prob\n')
-Sorted = []
-for line in result:
-    code = line[0]
-    k = line[1]
-    pos = len(X)-1
-    for j in range(1,len(X)):
-        if X[j-1]<=k and X[j]>=k:
-            pos = j-1
-            break
-    Sorted.append((sr[pos],code))
-    #s = code+',>'+str(sr[pos])[0:6]+'\n'
-    #f.write(s)
-    #print(s,k)
+for latest in latests:
+    print(latest)
 
-Sorted = sorted(Sorted,reverse = True)
+    cur.execute("""
+    SELECT
+    code,k 
+    FROM 
+    raw
+    WHERE
+    1=1
+    AND raw.kdjcross='金叉'
+    AND raw.macdcross='金叉'
+    AND date = %s 
+    ORDER BY k DESC
+    """, (latest,))
+    result = cur.fetchall()
+    filename = 'data/result/' + latest + '.csv'
+    f = open(filename, 'w')
+    f.write('code,prob\n')
+    Sorted = []
+    for line in result:
+        code = line[0]
+        k = line[1]
+        pos = len(X) - 1
+        for j in range(1, len(X)):
+            if X[j - 1] <= k and X[j] >= k:
+                pos = j - 1
+                break
+        Sorted.append((sr[pos], code))
 
-for line in Sorted:
-    code = line[1]
-    prob = line[0]
-    s = code +',>'+str(prob)[0:6]+'\n'
-    f.write(s)
-    print(s)
-f.close()
+    Sorted = sorted(Sorted, reverse=True)
+
+    for line in Sorted:
+        code = line[1]
+        prob = line[0]
+        if prob <= 0.52:
+            continue
+        s = code + ',>' + str(prob)[0:6] + '\n'
+        f.write(s)
+        print(s)
+    f.close()

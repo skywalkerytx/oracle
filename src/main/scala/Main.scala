@@ -21,8 +21,6 @@ import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 /**
   * Created by nova on 16-12-19.
   */
-//noinspection SqlDialectInspection
-
 
 object Main {
 
@@ -32,7 +30,6 @@ object Main {
     //DailyUpdate(SavetoDatabase = true,SaveVector = false,SaveLabel = false)
     val SavetoDatabse = true
     val SaveVector = true
-    val SavedVector = true
     val SaveLabel = true
     val UpdateAll = true
 
@@ -41,7 +38,7 @@ object Main {
     //new kdjpredict().mxnet
   }
 
-  def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, SavedVector: Boolean = false, UpdateAll: Boolean = false) = {
+  def DailyUpdate(SavetoDatabase: Boolean = false, SaveVector: Boolean = true, SaveLabel: Boolean = true, UpdateAll: Boolean = false) = {
 
     if (UpdateAll || ShouldDownload) {
       println("updating data from email: ")
@@ -53,18 +50,10 @@ object Main {
       println("zip readed")
     }
     if (SavetoDatabase) {
-      Cleanse
+      Cleanse(SaveVector = SaveVector, SaveLabel = SaveLabel)
       val xa: HikariTransactor[Task] = utils.GetHikariTransactor("daily-update-pool")
       val vec = new Vectorlize()
       val label = new Labels()
-      if (SavedVector) {
-        println("generating dVector")
-        vec.dVector.foreach {
-          feature =>
-            DailyQuery("dvector",feature)
-              .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
-        }
-      }
 
       if (SaveVector) {
         println("now inserting vector")
@@ -75,6 +64,7 @@ object Main {
               .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
         }
       }
+      else println("note: Vector may not up-to-date")
       if (SaveLabel) {
         println("now inserting label")
         val labels = new Labels().DataBaseLabel
@@ -84,21 +74,23 @@ object Main {
               .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
         }
       }
+      else println("note: Label may not up-to-date")
     }
   }
 
-  def Cleanse = {
+  def Cleanse(SaveVector: Boolean = true, SaveLabel: Boolean = true) = {
     val xa = utils.GetDriverManagerTransactor
-    println("count:")
-    sql"select count(1) from vector".query[String].list.transact(xa).unsafePerformIO.take(1).foreach(println)
-    println("count end")
     val vector: Update0 = sql"delete from vector".update
-    val dvec: Update0 = sql"delete from dvector".update
     val label: Update0 = sql"delete from label".update
-    (vector.run *> dvec.run *> label.run).transact(xa).unsafePerformIO
-    println("count:")
-    sql"select count(1) from vector".query[String].list.transact(xa).unsafePerformIO.take(1).foreach(println)
-    println("count end")
+    if (SaveVector) {
+      vector.run.transact(xa).unsafePerformIO
+      println("note: Vector is cleaned")
+    }
+    if (SaveLabel) {
+      label.run.transact(xa).unsafePerformIO
+      println("note: Label is cleaned")
+    }
+
   }
 
   def ShouldDownload: Boolean = {

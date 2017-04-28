@@ -36,46 +36,6 @@ class Vectorlize {
 
   val all = 1000000000
 
-  def dVector: ParSeq[Features] = {
-    var index = GetIndex
-    val mapping = GetMapping
-    val concept = GetConcept
-    val raw= GetRaw.list.transact(xa).unsafePerformSync.par.map{
-      raw =>
-        (
-          Key(raw.code, raw.date),
-          DenseVector(raw.op, raw.mx, raw.mn, raw.clse, raw.aft, raw.bfe, raw.amp, raw.vol,
-            raw.market, raw.market_exchange, raw.on_board, raw.total, raw.zt, raw.dt, raw.shiyinlv, raw.shixiaolv, raw.shixianlv,
-            raw.shijinglv, raw.ma5, raw.ma10, raw.ma20, raw.ma30, raw.ma60,
-            raw.macddif, raw.macddea, raw.macdmacd, raw.k, raw.d, raw.j, raw.berlinmid, raw.berlinup, raw.berlindown,
-            raw.psy, raw.psyma, raw.rsi1, raw.rsi2, raw.rsi3, raw.zhenfu, raw.volratio
-          )
-        )
-    }.toArray
-    println(s"doing D now. :${raw.length}")
-    (1 until raw.length).par.map(
-      idx =>
-        try {
-          Features(raw(idx)._1.code, raw(idx)._1.date,
-            (raw(idx)._2 - raw(idx - 1)._2).data
-              ++ index(raw(idx)._1.date)
-              ++ concept(raw(idx)._1.date)
-              ++ mapping(raw(idx)._1)
-          )
-        }
-        catch {
-          case ex: NoSuchElementException =>
-            index = GetIndex
-            Features(raw(idx)._1.code, raw(idx)._1.date,
-              (raw(idx)._2 - raw(idx - 1)._2).data
-                ++ index(raw(idx)._1.date)
-                ++ concept(raw(idx)._1.date)
-                ++ mapping(raw(idx)._1)
-            )
-        }
-    )
-  }
-
   def DataVector: ParSeq[Features] = {
     val index: Map[String, Array[Float]] = GetIndex
     val mapping: Map[Key, Array[Float]] = GetMapping

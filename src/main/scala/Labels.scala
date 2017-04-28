@@ -76,7 +76,7 @@ class Labels {
         for ( i <- 0 until reals.length -(DaystoPredict+1)) {
           val flag = (0 until DaystoPredict).map{
             delta=>
-              checkfunc(reals(i+delta+1),reals(i+delta+2))
+              checkfunc(reals(i + 1), reals(i + delta + 2))
           }.reduce{
             (day1,day2)=>
               day1||day2
