@@ -54,6 +54,11 @@ plt.subplot(212)
 plt.plot(X,recall,'b')
 plt.show()
 
+cur.execute('select distinct date from raw order by date desc limit 1')
+latest = cur.fetchone()[0]
+
+print(latest)
+
 cur.execute("""
 select
 code,k 
@@ -63,16 +68,17 @@ WHERE
 1=1
 and raw.kdjcross='金叉'
 and raw.macdcross='金叉'
-and date > '2017-04-25 ' 
-and date < '2017-04-27 '
+and date = %s 
 order by k desc
-""")
+""",(latest,))
+print(cur.query)
 result = cur.fetchall()
 #print(result)
 from datetime import datetime
 filename = str(datetime.now())[0:10]+'.csv'
 f = open(filename,'w')
 f.write('code,prob\n')
+Sorted = []
 for line in result:
     code = line[0]
     k = line[1]
@@ -81,8 +87,17 @@ for line in result:
         if X[j-1]<=k and X[j]>=k:
             pos = j-1
             break
-    s = code+',>'+str(sr[pos])[0:6]+'\n'
-    f.write(s)
-    print(s,k)
+    Sorted.append((sr[pos],code))
+    #s = code+',>'+str(sr[pos])[0:6]+'\n'
+    #f.write(s)
+    #print(s,k)
 
+Sorted = sorted(Sorted,reverse = True)
+
+for line in Sorted:
+    code = line[1]
+    prob = line[0]
+    s = code +',>'+str(prob)[0:6]+'\n'
+    f.write(s)
+    print(s)
 f.close()
