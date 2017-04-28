@@ -75,7 +75,7 @@ print(cur.query)
 result = cur.fetchall()
 #print(result)
 from datetime import datetime
-filename = str(datetime.now())[0:10]+'.csv'
+filename = 'data/result/'+str(datetime.now())[0:10]+'.csv'
 f = open(filename,'w')
 f.write('code,prob\n')
 Sorted = []
