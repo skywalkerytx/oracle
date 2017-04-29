@@ -335,7 +335,7 @@ def tfplayground():
                 SummaryWriter.add_summary(acc_sum, epoch)
                 SummaryWriter.add_summary(loss_sum, epoch)
             print('epoch %d finished at %s with Accuracy: %.4f'%(epoch,str(datetime.now())[11:19],Acc))
-            time.sleep(15) #my graphic card's fan speed is fucked when training
+            #time.sleep(15) #my graphic card's fan speed is fucked when training
 
 
 
