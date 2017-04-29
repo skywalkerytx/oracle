@@ -14,7 +14,7 @@ n_classes = 2
 
 BatchSize = 256
 LearningRate = 0.001
-Epochs = 20000
+Epochs = 5000
 
 tfdtype = tf.float32
 
@@ -181,6 +181,18 @@ def MLP(X,n_hidden,n_layer,with_dropout = False,keep_prob = 0.75):
                             keep_prob=keep_prob)
     return net
 
+def RNN(X,n_steps,n_hidden,n_lstm):
+    cell_list = []
+    for _ in range(n_lstm):
+        newcell = tf.contrib.rnn.LSTMCell(num_units=n_hidden, forget_bias=1.0, activation=tf.nn.elu)
+        cell_list.append(newcell)
+    net = tf.contrib.rnn.MultiRNNCell(cell_list)
+    output,state = tf.contrib.rnn.static_rnn(net, X, dtype=tf.float32)
+    net = output[-1]
+    net = tf.nn.dropout(net, keep_prob=0.9)
+    return net
+
+
 def tftrain():
 
     x_train, x_val, y_train, y_val = load()
@@ -192,10 +204,22 @@ def tftrain():
         rawlabel = placeholder(dtype=tf.int32,shape=(BatchSize,))
         label = tf.one_hot(rawlabel, n_classes, name='onehot')
 
-    net = MLP(feature,n_hidden,n_layer=2,with_dropout=True,keep_prob=0.75)
+    with name_scope('MLP'):
+        net = MLP(feature,n_hidden,n_layer=2,with_dropout=True,keep_prob=0.75)
+
+    rnn_hidden = int(n_inputs/n_steps)
+
+    with name_scope('transform-for-RNN'): #net.shape = (BatchSize, n_inputs= n_steps * n_hidden)
+        net = tf.reshape(net,(BatchSize,n_steps,rnn_hidden))
+        net = tf.transpose(net,(1,0,2)) # n_steps, BatchSize, n_hidden
+        net = tf.reshape(net,(-1,rnn_hidden)) # n_steps * BatchSize, n_hidden
+        net = tf.split(net,n_steps,0) # n_steps, BatchSize, n_hidden
+
+    with name_scope('RNN'):
+        net = RNN(net,n_steps,rnn_hidden,1)
 
     with name_scope('outputlr'):
-        net = logisticlayer(net,n_hidden,n_classes,with_relu=False,name='output')
+        net = logisticlayer(net,rnn_hidden,n_classes,with_relu=False,name='output')
         net = tf.nn.softmax(net)
 
     with name_scope('loss'):
@@ -334,8 +358,7 @@ def baseline():
 if __name__ == '__main__':
     #rnnfromdb()
     #fromdb()
-    while True:
-        tftrain()
+    tftrain()
     #baseline()
     rnntest = True
 
