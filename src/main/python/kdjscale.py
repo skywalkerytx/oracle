@@ -230,7 +230,8 @@ def tftrain():
         loss_func = tf.losses.log_loss(labels=label,predictions=net)
 
     with name_scope('optimizer'):
-        optimizer = tf.train.GradientDescentOptimizer(LearningRate)
+        #optimizer = tf.train.GradientDescentOptimizer(LearningRate)
+        optimizer = tf.train.AdamOptimizer(epsilon=0.1)
         grads = optimizer.compute_gradients(loss_func)
         apply_grads = optimizer.apply_gradients(grads)
 
