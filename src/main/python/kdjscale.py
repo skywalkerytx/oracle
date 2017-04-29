@@ -171,10 +171,14 @@ def logisticlayer(X,n_hidden,n_classes,name, with_relu=True,with_dropout = False
             layer = tf.nn.relu(layer)
     return layer
 
-def MLP(X,n_hidden,n_layer):
+def MLP(X,n_hidden,n_layer,with_dropout = False,keep_prob = 0.75):
     net = X
-    for i in range(n_layer):
-        net = logisticlayer(net,n_hidden,n_hidden,'logistic-'+str(i),with_relu=True,with_dropout=True,keep_prob=0.75)
+    for i in range(n_layer-1):
+        net = logisticlayer(net,n_hidden,n_hidden,'logistic-'+str(i),with_relu=True)
+        #
+    if with_dropout and n_layer>=1:
+        net = logisticlayer(net, n_hidden, n_hidden, 'logistic-' + str(i), with_relu=True, with_dropout=True,
+                            keep_prob=keep_prob)
     return net
 
 def tftrain():
@@ -188,7 +192,7 @@ def tftrain():
         rawlabel = placeholder(dtype=tf.int32,shape=(BatchSize,))
         label = tf.one_hot(rawlabel, n_classes, name='onehot')
 
-    net = MLP(feature,n_hidden,n_layer=1)
+    net = MLP(feature,n_hidden,n_layer=2,with_dropout=True,keep_prob=0.75)
 
     with name_scope('outputlr'):
         net = logisticlayer(net,n_hidden,n_classes,with_relu=False,name='output')
