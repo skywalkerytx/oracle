@@ -4,7 +4,7 @@ from sklearn import decomposition
 from sklearn.model_selection import train_test_split
 import psycopg2
 import tensorflow as tf
-
+from functools import reduce
 from datetime import datetime
 
 n_steps = 5
@@ -14,7 +14,7 @@ n_classes = 2
 
 BatchSize = 256
 LearningRate = 0.001
-Epochs = 250
+Epochs = 20000
 
 tfdtype = tf.float32
 
@@ -61,7 +61,7 @@ def fromdb():
     n_inputs = int(feature.shape[1])
     n_hidden = n_inputs
 
-    print(feature.shape[1])
+    print(feature.shape)
     print(label.shape)
 
     x_train, x_val, y_train, y_val = train_test_split(feature, label, test_size=0.3, random_state=42)
@@ -70,8 +70,83 @@ def fromdb():
     np.save('data/kdjonly/y_train',y_train)
     np.save('data/kdjonly/y_val',y_val)
 
+def rnnpercode(code):
+    cur.execute('''
+                SELECT
+                  k,
+                  d,
+                  j,
+                  CASE WHEN kdjcross = '金叉' THEN 1 ELSE 0 END AS kdjcross_bool,
+                  macddif,
+                  macddea,
+                  macdmacd,
+                  CASE WHEN macdcross = '金叉' THEN 1 ELSE 0 END AS macdcross_bool,
+                  CASE WHEN macdcross = kdjcross AND kdjcross = '金叉'  THEN 1 ELSE 0 END AS Resonance,
+                  label.vector[1]
+                FROM raw
+                  INNER JOIN label
+                  ON raw.code=label.code AND raw.date=label.date
+                WHERE 
+                  raw.code = %s
+                ORDER BY 
+                  raw.date ASC 
+                ''', (code,))
+    rawdata = cur.fetchall()
+
+    rawfeature = [x[0:9] for x in rawdata]
+    label = [x[-1] for x in rawdata]
+
+    rawfeature = preprocess(np.asarray(rawfeature, dtype=np.float32))
+    rawlabel = np.asarray(label, dtype=np.int32)
+    feature = np.zeros((len(rawfeature)-n_steps+1,n_inputs),dtype=np.float32)
+    label = np.zeros((len(rawlabel)-n_steps+1,),dtype=np.int32)
+
+    for i in range(len(rawlabel)-n_steps+1):
+        feature[i] = np.asarray([rawfeature[i+j] for j in range(n_steps)]).reshape((n_inputs,))
+        label[i] = rawlabel[i+n_steps-1]
+    return feature,label
+
 def rnnfromdb():
-    pass
+    cur.execute('''
+    SELECT t.code
+    FROM (    SELECT
+      raw.code,count(1) as cnt
+    FROM raw
+      INNER JOIN label
+      ON raw.code=label.code AND raw.date=label.date
+    GROUP BY raw.code
+    order by cnt ASC) t
+    where t.cnt>=%s
+''',(n_steps,))
+    codes = [x[0] for x in cur.fetchall()]
+    global n_inputs
+    global n_hidden
+
+    n_inputs = n_steps * n_inputs
+    n_hidden=n_inputs
+    rawdata = [rnnpercode(code) for code in codes]
+    s = 0
+    for i in rawdata:
+        s+=len(i)
+    print(s)
+    feature,label = rawdata[0]
+
+    for i in range(1,len(rawdata)):
+        linefeature,linelabel = rawdata[i]
+        feature = np.concatenate((feature,linefeature),axis=0)
+        label = np.concatenate((label,linelabel),axis=0)
+    #feature,label = reduce(lambda x,y:(np.concatenate((x[0],y[0]),axis=0),np.concatenate((x[1],y[1]),axis=0)),rawdata)
+
+    print(feature.shape)
+    print(label.shape)
+
+    x_train, x_val, y_train, y_val = train_test_split(feature, label, test_size=0.3, random_state=42)
+    np.save('data/kdjonly/x_train', x_train)
+    np.save('data/kdjonly/x_val', x_val)
+    np.save('data/kdjonly/y_train', y_train)
+    np.save('data/kdjonly/y_val', y_val)
+
+
 
 def load():
     x_train = np.load('data/kdjonly/x_train.npy')
@@ -131,6 +206,8 @@ def tftrain():
         grads = optimizer.compute_gradients(loss_func)
         apply_grads = optimizer.apply_gradients(grads)
 
+    with name_scope('early-optimizer'):
+        jumper = tf.train.GradientDescentOptimizer(0.01).minimize(loss_func)
 
     with tf.name_scope('metrics'):
         accuracy = tf.equal(tf.arg_max(net, 1), tf.arg_max(label, 1))
@@ -151,9 +228,12 @@ def tftrain():
 
     merged_summary_op = tf.summary.merge_all()
 
-    tf_log_path = 'data/tf_log/' + str(datetime.now())[0:19].replace(':', '-')
+    ModelPath = str(datetime.now())[0:19].replace(':', '-')
+    tf_log_path = 'data/tf_log/' + ModelPath
     SummaryWriter = tf.summary.FileWriter(tf_log_path, graph=tf.get_default_graph())
+
     trainbatch = int(len(x_train)/BatchSize)
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         for epoch in range(Epochs):
@@ -161,10 +241,16 @@ def tftrain():
             TrainLoss = 0.0
             for i in range(trainbatch):
                 x,y = nextbatch(x_train,y_train,BatchSize,i,shuffle=True)
-                _,summary,acc,loss = sess.run([apply_grads,merged_summary_op,accuracy,loss_func],feed_dict={
+                if epoch>=100:
+                    _,summary,acc,loss = sess.run([apply_grads,merged_summary_op,accuracy,loss_func],feed_dict={
                     feature:x,
                     rawlabel:y
                 })
+                else:
+                    _, summary, acc, loss = sess.run([jumper, merged_summary_op, accuracy, loss_func], feed_dict={
+                        feature: x,
+                        rawlabel: y
+                    })
                 SummaryWriter.add_summary(summary,epoch * trainbatch + i)
                 TrainAcc+=acc
                 TrainLoss +=loss
@@ -205,7 +291,10 @@ def tftrain():
             SummaryWriter.add_summary(TrainLossSum, epoch)
             SummaryWriter.add_summary(ValLossSum,epoch)
 
-            print('epoch %d finished at %s with val-Accuracy: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc))
+            print('epoch %d finished at %s with \n    val-Accuracy: %.4f\n    val-Loss: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc,ValLoss))
+        saver = tf.train.Saver()
+        saver.save(sess,'data/tensorflow/'+ModelPath)
+
 
 def nextbatch(x, y, BatchSize, batch_num, shuffle=False):
     if shuffle:
@@ -239,7 +328,11 @@ def baseline():
 
 
 if __name__ == '__main__':
-    fromdb()
-    #tftrain()
-    baseline()
+    #rnnfromdb()
+    #fromdb()
+    while True:
+        tftrain()
+    #baseline()
+    rnntest = True
+
 
