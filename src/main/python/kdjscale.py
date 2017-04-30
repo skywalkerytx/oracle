@@ -74,6 +74,8 @@ def fromdb():
 def rnnpercode(code):
     cur.execute('''
                 SELECT
+                  op,
+                  mx,
                   k,
                   d,
                   j,
@@ -146,7 +148,7 @@ def rnnfromdb():
     np.save('data/kdjonly/x_val', x_val)
     np.save('data/kdjonly/y_train', y_train)
     np.save('data/kdjonly/y_val', y_val)
-
+    con.close()
 
 
 def load():
@@ -206,7 +208,7 @@ def tftrain():
         label = tf.one_hot(rawlabel, n_classes, name='onehot')
 
     with name_scope('MLP'):
-        net = MLP(feature,n_hidden,n_layer=2,with_dropout=True,keep_prob=0.75)
+        net = MLP(feature,n_hidden,n_layer=n_steps,with_dropout=False,keep_prob=0.75)
 
     rnn_hidden = int(n_inputs/n_steps)
 
@@ -217,9 +219,10 @@ def tftrain():
         net = tf.split(net,n_steps,0) # n_steps, BatchSize, n_hidden
 
     with name_scope('RNN'):
-        net = RNN(net,n_steps,rnn_hidden,1)
+        net = RNN(net,n_steps,rnn_hidden,2)
 
     with name_scope('outputlr'):
+        #net = tf.nn.dropout(net,keep_prob=0.75)
         net = logisticlayer(net,rnn_hidden,n_classes,with_relu=False,name='output')
         net = tf.nn.softmax(net)
 
@@ -227,12 +230,12 @@ def tftrain():
         #loss_func = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label,logits=net))
 
         #loss_func = tf.losses.mean_squared_error(labels=label,predictions=net)
-        loss_func = tf.losses.softmax_cross_entropy(onehot_labels=label,logits=net)
-        #loss_func = tf.losses.log_loss(labels=label,predictions=net)
+        #loss_func = tf.losses.softmax_cross_entropy(onehot_labels=label,logits=net)
+        loss_func = tf.losses.log_loss(labels=label,predictions=net)
 
     with name_scope('optimizer'):
-        #optimizer = tf.train.GradientDescentOptimizer(LearningRate)
-        optimizer = tf.train.AdamOptimizer(epsilon=0.01)
+        optimizer = tf.train.GradientDescentOptimizer(LearningRate)
+        #optimizer = tf.train.AdamOptimizer(epsilon=0.01)
         grads = optimizer.compute_gradients(loss_func)
         apply_grads = optimizer.apply_gradients(grads)
 
@@ -266,12 +269,14 @@ def tftrain():
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        for epoch in range(Epochs):
+        #for epoch in range(Epochs):
+        epoch = 0
+        while True:
             TrainAcc = 0.0
             TrainLoss = 0.0
             for i in range(trainbatch):
                 x,y = nextbatch(x_train,y_train,BatchSize,i,shuffle=True)
-                if epoch>=100:
+                if epoch>=1000:
                     _,summary,acc,loss = sess.run([apply_grads,merged_summary_op,accuracy,loss_func],feed_dict={
                     feature:x,
                     rawlabel:y
@@ -322,10 +327,7 @@ def tftrain():
             SummaryWriter.add_summary(ValLossSum,epoch)
 
             print('epoch %d finished at %s with \n    val-Accuracy: %.4f\n    val-Loss: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc,ValLoss))
-            if epoch%50 == 0:
-                time.sleep(30)
-        saver = tf.train.Saver()
-        saver.save(sess,'data/tensorflow/'+ModelPath)
+            epoch+=1
 
 
 def nextbatch(x, y, BatchSize, batch_num, shuffle=False):
