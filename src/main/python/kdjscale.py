@@ -6,6 +6,7 @@ import psycopg2
 import tensorflow as tf
 from functools import reduce
 from datetime import datetime
+import time
 
 n_steps = 5
 n_inputs = 9 # k,d,j,kdjcross,macddif,macddea,macdmacd,macdcross,cross=cross 9 total
@@ -226,12 +227,12 @@ def tftrain():
         #loss_func = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label,logits=net))
 
         #loss_func = tf.losses.mean_squared_error(labels=label,predictions=net)
-        #loss_func = tf.losses.softmax_cross_entropy(onehot_labels=label,logits=net)
-        loss_func = tf.losses.log_loss(labels=label,predictions=net)
+        loss_func = tf.losses.softmax_cross_entropy(onehot_labels=label,logits=net)
+        #loss_func = tf.losses.log_loss(labels=label,predictions=net)
 
     with name_scope('optimizer'):
         #optimizer = tf.train.GradientDescentOptimizer(LearningRate)
-        optimizer = tf.train.AdamOptimizer(epsilon=0.1)
+        optimizer = tf.train.AdamOptimizer(epsilon=0.01)
         grads = optimizer.compute_gradients(loss_func)
         apply_grads = optimizer.apply_gradients(grads)
 
@@ -246,7 +247,7 @@ def tftrain():
         log_accuracy = tf.summary.scalar('accuracy',accuracy)
         log_loss = tf.summary.scalar('loss',loss_func)
 
-
+    '''
     with tf.name_scope('weights'):
         for var in tf.trainable_variables():
             tf.summary.histogram(var.name,var)
@@ -254,7 +255,7 @@ def tftrain():
     with tf.name_scope('grads'):
         for grad,var in grads:
             tf.summary.histogram(var.name+'/gradient',grad)
-
+    '''
     merged_summary_op = tf.summary.merge_all()
 
     ModelPath = str(datetime.now())[0:19].replace(':', '-')
@@ -321,6 +322,8 @@ def tftrain():
             SummaryWriter.add_summary(ValLossSum,epoch)
 
             print('epoch %d finished at %s with \n    val-Accuracy: %.4f\n    val-Loss: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc,ValLoss))
+            if epoch%50 == 0:
+                time.sleep(30)
         saver = tf.train.Saver()
         saver.save(sess,'data/tensorflow/'+ModelPath)
 
