@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 n_steps = 5
 n_inputs = 9 # k,d,j,kdjcross,macddif,macddea,macdmacd,macdcross,cross=cross 9 total
 n_hidden = 9
-n_classes = 2
+n_classes = 3
 
 BatchSize = 256
 LearningRate = 0.001
@@ -77,13 +77,25 @@ def rnnpercode(code):
                   k,
                   d,
                   j,
-                  CASE WHEN kdjcross = '金叉' THEN 1 ELSE 0 END AS kdjcross_bool,
+                  CASE
+                    WHEN kdjcross = '金叉' THEN 1
+                    WHEN kdjcross = '死叉' THEN 2
+                  ELSE 0 END
+                    AS kdjcross_bool,
                   macddif,
                   macddea,
                   macdmacd,
-                  CASE WHEN macdcross = '金叉' THEN 1 ELSE 0 END AS macdcross_bool,
-                  CASE WHEN macdcross = kdjcross AND kdjcross = '金叉'  THEN 1 ELSE 0 END AS Resonance,
-                  label.vector[1]
+                  CASE
+                    WHEN macdcross = '金叉' THEN 1
+                    WHEN macdcross = '死叉' THEN 2
+                  ELSE 0 END
+                    AS macdcross_bool,
+                  CASE
+                    WHEN macdcross = kdjcross AND kdjcross = '金叉' THEN 1
+                    WHEN macdcross = kdjcross AND kdjcross = '死叉' THEN 2
+                    WHEN macdcross = kdjcross AND kdjcross = '' THEN 3
+                  ELSE 0 END
+                    AS Resonance
                 FROM raw
                   INNER JOIN label
                   ON raw.code=label.code AND raw.date=label.date
@@ -242,21 +254,14 @@ def tftrain():
         jumper = tf.train.GradientDescentOptimizer(0.01).minimize(loss_func)
 
     with tf.name_scope('metrics'):
-        mlabel = tf.argmax(label, 1)
-        mnet = tf.argmax(net, 1)
-        accuracy = tf.equal(mlabel, mnet)
-        accuracy = (tf.reduce_mean(tf.to_float(accuracy)), tf.zeros((1,)))
-        # accuracy = tf.metrics.accuracy(mlabel,mnet)
-        precision = tf.metrics.precision(mlabel, mnet)
-        recall = tf.metrics.precision(mlabel, mnet)
+        correct_preds = tf.equal(tf.argmax(net, 1), tf.argmax(label, 1))
+        accuracy = tf.reduce_mean(tf.float32(correct_preds))
 
 
 
     with tf.name_scope('log-by-batch'):
-        tf.summary.scalar('accuracy', accuracy[0])
+        tf.summary.scalar('accuracy', accuracy)
         tf.summary.scalar('loss', loss_func)
-        tf.summary.scalar('precision', precision[0])
-        tf.summary.scalar('recall', recall[0])
     '''
     with tf.name_scope('weights'):
         for var in tf.trainable_variables():
@@ -283,80 +288,59 @@ def tftrain():
         while True:
             TrainAcc = 0.0
             TrainLoss = 0.0
-            tpre = 0.0
-            trec = 0.0
             for i in range(trainbatch):
                 x,y = nextbatch(x_train,y_train,BatchSize,i,shuffle=True)
-                if epoch>=1000:
-                    _, acc, loss, pre, rec, summary = sess.run(
-                        [apply_grads, accuracy, loss_func, precision, recall, merged_summary_op], feed_dict={
+                if epoch >= 100:
+                    _, acc, loss, summary = sess.run(
+                        [apply_grads, accuracy, loss_func, merged_summary_op], feed_dict={
                     feature:x,
                     rawlabel:y
                 })
                 else:
-                    _, acc, loss, pre, rec, summary = sess.run(
-                        [jumper, accuracy, loss_func, precision, recall, merged_summary_op], feed_dict={
+                    _, acc, loss, summary = sess.run(
+                        [jumper, accuracy, loss_func, merged_summary_op], feed_dict={
                         feature: x,
                         rawlabel: y
                     })
                 SummaryWriter.add_summary(summary,epoch * trainbatch + i)
-                TrainAcc += acc[0]
+                TrainAcc += acc
                 TrainLoss +=loss
-                trec += rec[0]
-                tpre += pre[0]
 
 
             valbatch = int(len(x_val)/BatchSize)
 
             ValAcc = 0.0
             ValLoss = 0.0
-            vpre = 0.0
-            vrec = 0.0
             for i in range(valbatch):
                 x,y = nextbatch(x_val,y_val,BatchSize,i,shuffle=False)
                 acc, loss, valpre, valrec = sess.run([accuracy, loss_func, precision, recall], feed_dict={
                     feature:x,
                     rawlabel:y
                 })
-                ValAcc += acc[0]
+                ValAcc += acc
                 ValLoss+=loss
-                vpre += valpre[0]
-                vrec += valrec[0]
 
             TrainAcc /= trainbatch
             TrainLoss /= trainbatch
-            tpre /= trainbatch
-            trec /= trainbatch
             ValAcc/=valbatch
             ValLoss/=valbatch
-            vpre /= valbatch
-            vrec /= valbatch
 
-            tf1 = 2 * tpre * trec / (tpre + trec)
-
-            vf1 = 2 * vpre * vrec / (vpre + vrec)
 
             TrainAccSum = tf.Summary()
             TrainLossSum = tf.Summary()
             ValAccSum = tf.Summary()
             ValLossSum = tf.Summary()
 
-            tfs = tf.Summary()
-            vfs = tf.Summary()
 
             TrainAccSum.value.add(tag='log-by-epoch/Accuracy/Train', simple_value=TrainAcc)
             TrainLossSum.value.add(tag='log-by-epoch/Loss/Train', simple_value=TrainLoss)
             ValAccSum.value.add(tag='log-by-epoch/Accuracy/Validation',simple_value=ValAcc)
             ValLossSum.value.add(tag='log-by-epoch/Loss/Validation',simple_value=ValLoss)
-            tfs.value.add(tag='log-by-epoch/F1/Train', simple_value=tf1)
-            vfs.value.add(tag='log-by-batch/F1/Validation', simple_value=vf1)
 
             SummaryWriter.add_summary(TrainAccSum, epoch)
             SummaryWriter.add_summary(ValAccSum,epoch)
             SummaryWriter.add_summary(TrainLossSum, epoch)
             SummaryWriter.add_summary(ValLossSum,epoch)
-            SummaryWriter.add_summary(tfs, epoch)
-            SummaryWriter.add_summary(vfs, epoch)
 
             print('epoch %d finished at %s with \n    val-Accuracy: %.4f\n    val-Loss: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc,ValLoss))
             epoch+=1
@@ -394,7 +378,7 @@ def baseline():
 
 
 if __name__ == '__main__':
-    #rnnfromdb()
+    rnnfromdb()
     #fromdb()
     tftrain()
     #baseline()
