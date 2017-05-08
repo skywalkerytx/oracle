@@ -33,6 +33,31 @@ class Labels {
       false
   }
 
+  def Real(key: utils.Key): Query0[rawlabel] = {
+
+    sql"SELECT op,mx,clse FROM raw WHERE code= ${key.code} AND date = ${key.date}".query[rawlabel]
+  }
+
+  def LabelA = GenLabel(CheckA)
+
+  def LabelB = GenLabel(CheckB)
+
+  def ResonaceLabel: ParArray[(String, String, Int)] = {
+    val codes = CodeAvailable.list.transact(xa).unsafePerformSync
+    codes.map {
+      code =>
+        val dates = DateAvailable(code).list.transact(xa).unsafePerformSync.toArray.par
+        dates.map {
+          date =>
+            val tomorrow: Array[Int] = getResonance(code, date).list.transact(xa).unsafePerformSync.toArray
+            (code, date, tomorrow)
+        }.filter(_._3.length > 0).map(x => (x._1, x._2, x._3(0)))
+    }.reduce {
+      (x, y) =>
+        x ++ y
+    }
+  }
+
   def CodeAvailable:Query0[String] =
     sql"""
        SELECT
@@ -54,16 +79,30 @@ class Labels {
     sql"select date from raw where code = $code order by date asc".query[String]
   }
 
-  def Real(key:utils.Key):Query0[rawlabel] = {
-
-    sql"select op,mx,clse from raw where code= ${key.code} and date = ${key.date}".query[rawlabel]
+  def getResonance(code: String, date: String): Query0[Int] = {
+    sql"""
+                 SELECT
+         CASE
+           WHEN macdcross = '金叉' AND kdjcross = '金叉' THEN 0
+           WHEN macdcross = '金叉' AND kdjcross = '死叉' THEN 1
+           WHEN macdcross = '金叉' AND kdjcross = '' THEN 2
+           WHEN macdcross = '死叉' AND kdjcross ='金叉' THEN 3
+           WHEN macdcross = '死叉' AND kdjcross = '死叉' THEN 4
+           WHEN macdcross = '死叉' AND kdjcross = ''THEN 5
+           WHEN macdcross = '' AND kdjcross = '金叉'THEN 6
+           WHEN macdcross = '' AND kdjcross = '死叉' THEN 7
+           WHEN macdcross = '' AND kdjcross = ''THEN 8
+           ELSE 9 END
+             AS Resonance
+                 FROM
+                  raw
+                  WHERE code= $code AND date > $date
+                  ORDER BY date ASC
+                  LIMIT 1
+              """.query[Int]
   }
 
-  def LabelA = GenLabel(CheckA)
-
-  def LabelB = GenLabel(CheckB)
-
-  def GenLabel(checkfunc:(rawlabel,rawlabel) => Boolean) = {
+  def GenLabel(checkfunc: (rawlabel, rawlabel) => Boolean): Map[Key, Int] = {
     val codes = CodeAvailable.list.transact(xa).unsafePerformSync
     codes.map{
       code=>
@@ -93,6 +132,7 @@ class Labels {
 
   def DataBaseLabel: Array[Features] = {
     val la = LabelA
+    //val la = ResonaceLabel
     val lb = LabelB
     la.keys.map(key => utils.Features(key.code, key.date, Array(la(key), lb(key))))
   }.toArray

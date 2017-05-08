@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 n_steps = 5
 n_inputs = 9 # k,d,j,kdjcross,macddif,macddea,macdmacd,macdcross,cross=cross 9 total
 n_hidden = 9
-n_classes = 3
+n_classes = 9  # resonance
 
 BatchSize = 256
 LearningRate = 0.001
@@ -91,10 +91,16 @@ def rnnpercode(code):
                   ELSE 0 END
                     AS macdcross_bool,
                   CASE
-                    WHEN macdcross = kdjcross AND kdjcross = '金叉' THEN 1
-                    WHEN macdcross = kdjcross AND kdjcross = '死叉' THEN 2
-                    WHEN macdcross = kdjcross AND kdjcross = '' THEN 3
-                  ELSE 0 END
+                    WHEN macdcross = '金叉' AND kdjcross = '金叉' THEN 0
+                    WHEN macdcross = '金叉' AND kdjcross = '死叉' THEN 1
+                    WHEN macdcross = '金叉' AND kdjcross = '' THEN 2
+                    WHEN macdcross = '死叉' AND kdjcross ='金叉' THEN 3
+                    WHEN macdcross = '死叉' AND kdjcross = '死叉' THEN 4
+                    WHEN macdcross = '死叉' AND kdjcross = ''THEN 5
+                    WHEN macdcross = '' AND kdjcross = '金叉'THEN 6
+                    WHEN macdcross = '' AND kdjcross = '死叉' THEN 7
+                    WHEN macdcross = '' AND kdjcross = ''THEN 8
+                  ELSE 9 END
                     AS Resonance,
                     label.vector[1]
                 FROM raw

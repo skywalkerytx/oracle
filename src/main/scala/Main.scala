@@ -11,6 +11,7 @@ import scalaz.concurrent.Task
 import scala.language.postfixOps
 import doobie.postgres.pgtypes._
 import doobie.postgres.sqlstate.class23.UNIQUE_VIOLATION
+import utils.Key
 //import org.apache.log4j.BasicConfigurator
 import shapeless.HNil
 import utils.Features
@@ -34,6 +35,8 @@ object Main {
     val UpdateAll = true
 
     DailyUpdate(SavetoDatabase = SavetoDatabse, SaveVector = SaveVector, SaveLabel = SaveLabel)
+    //val label = new Labels()
+    //label.ResonaceLabel
     //ValidationCheck.LabelCheck
     //new kdjpredict().mxnet
   }
@@ -67,11 +70,14 @@ object Main {
       else println("note: Vector may not up-to-date")
       if (SaveLabel) {
         println("now inserting label")
-        val labels = new Labels().DataBaseLabel
-        labels.par.foreach {
+        label.DataBaseLabel.par.foreach {
           label =>
             DailyQuery("label", label)
               .attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
+        }
+        label.ResonaceLabel.par.foreach {
+          label =>
+            ResonanceQuery(label).run.attemptSomeSqlState { case UNIQUE_VIOLATION => }.transact(xa).unsafePerformSync
         }
       }
       else println("note: Label may not up-to-date")
@@ -124,6 +130,10 @@ object Main {
     val query = "INSERT INTO " + table + " (code,date,vector) VALUES(?,?,?)"
 
     Update[Features](query).toUpdate0(feature).run
+  }
+
+  def ResonanceQuery(feature: (String, String, Int)): Update0 = {
+    sql"""INSERT INTO kdjlabel(code,date,label) VALUES (${feature._1},${feature._2},${feature._3})""".update
   }
 
 }

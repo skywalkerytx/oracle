@@ -120,7 +120,7 @@ CREATE INDEX IF NOT EXISTS Label_code_idx ON Label(code);
 
 CREATE INDEX IF NOT EXISTS Label_date_idx ON Label(date);
 
-CREATE TABLE log_mapping (
+CREATE TABLE IF NOT EXISTS log_mapping (
   code   CHAR(9),
   date   CHAR(11),
   vector INT [],
@@ -131,3 +131,16 @@ CREATE INDEX IF NOT EXISTS log_mapping_code_idx
   ON log_mapping (code);
 CREATE INDEX IF NOT EXISTS log_mapping_date_idx
   ON log_mapping (date);
+
+CREATE TABLE IF NOT EXISTS kdjlabel (
+  code  CHAR(9),
+  date  CHAR(11),
+  label INT,
+  PRIMARY KEY (code, date)
+);
+
+CREATE INDEX IF NOT EXISTS kdjlabel_code_idx
+  ON kdjlabel (code);
+
+CREATE INDEX IF NOT EXISTS kdjlabel_date_idx
+  ON kdjlabel (date);
