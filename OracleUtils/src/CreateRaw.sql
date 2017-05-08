@@ -119,3 +119,15 @@ PRIMARY KEY (code,date)
 CREATE INDEX IF NOT EXISTS Label_code_idx ON Label(code);
 
 CREATE INDEX IF NOT EXISTS Label_date_idx ON Label(date);
+
+CREATE TABLE log_mapping (
+  code   CHAR(9),
+  date   CHAR(11),
+  vector INT [],
+  PRIMARY KEY (code, date)
+);
+
+CREATE INDEX IF NOT EXISTS log_mapping_code_idx
+  ON log_mapping (code);
+CREATE INDEX IF NOT EXISTS log_mapping_date_idx
+  ON log_mapping (date);
