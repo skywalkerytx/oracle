@@ -95,7 +95,8 @@ def rnnpercode(code):
                     WHEN macdcross = kdjcross AND kdjcross = '死叉' THEN 2
                     WHEN macdcross = kdjcross AND kdjcross = '' THEN 3
                   ELSE 0 END
-                    AS Resonance
+                    AS Resonance,
+                    label.vector[1]
                 FROM raw
                   INNER JOIN label
                   ON raw.code=label.code AND raw.date=label.date
@@ -255,7 +256,7 @@ def tftrain():
 
     with tf.name_scope('metrics'):
         correct_preds = tf.equal(tf.argmax(net, 1), tf.argmax(label, 1))
-        accuracy = tf.reduce_mean(tf.float32(correct_preds))
+        accuracy = tf.reduce_mean(tf.to_float(correct_preds))
 
 
 
@@ -313,7 +314,7 @@ def tftrain():
             ValLoss = 0.0
             for i in range(valbatch):
                 x,y = nextbatch(x_val,y_val,BatchSize,i,shuffle=False)
-                acc, loss, valpre, valrec = sess.run([accuracy, loss_func, precision, recall], feed_dict={
+                acc, loss = sess.run([accuracy, loss_func], feed_dict={
                     feature:x,
                     rawlabel:y
                 })
@@ -378,7 +379,7 @@ def baseline():
 
 
 if __name__ == '__main__':
-    rnnfromdb()
+    # rnnfromdb()
     #fromdb()
     tftrain()
     #baseline()
