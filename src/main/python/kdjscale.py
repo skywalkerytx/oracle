@@ -242,13 +242,21 @@ def tftrain():
         jumper = tf.train.GradientDescentOptimizer(0.01).minimize(loss_func)
 
     with tf.name_scope('metrics'):
-        accuracy = tf.equal(tf.arg_max(net, 1), tf.arg_max(label, 1))
-        accuracy = tf.reduce_mean(tf.to_float(accuracy))
+        mlabel = tf.argmax(label, 1)
+        mnet = tf.argmax(net, 1)
+        accuracy = tf.equal(mlabel, mnet)
+        accuracy = (tf.reduce_mean(tf.to_float(accuracy)), tf.zeros((1,)))
+        # accuracy = tf.metrics.accuracy(mlabel,mnet)
+        precision = tf.metrics.precision(mlabel, mnet)
+        recall = tf.metrics.precision(mlabel, mnet)
+
+
 
     with tf.name_scope('log-by-batch'):
-        log_accuracy = tf.summary.scalar('accuracy',accuracy)
-        log_loss = tf.summary.scalar('loss',loss_func)
-
+        tf.summary.scalar('accuracy', accuracy[0])
+        tf.summary.scalar('loss', loss_func)
+        tf.summary.scalar('precision', precision[0])
+        tf.summary.scalar('recall', recall[0])
     '''
     with tf.name_scope('weights'):
         for var in tf.trainable_variables():
@@ -267,63 +275,88 @@ def tftrain():
     trainbatch = int(len(x_train)/BatchSize)
 
     with tf.Session() as sess:
+        sess.run(tf.local_variables_initializer())
         sess.run(tf.global_variables_initializer())
+
         #for epoch in range(Epochs):
         epoch = 0
         while True:
             TrainAcc = 0.0
             TrainLoss = 0.0
+            tpre = 0.0
+            trec = 0.0
             for i in range(trainbatch):
                 x,y = nextbatch(x_train,y_train,BatchSize,i,shuffle=True)
                 if epoch>=1000:
-                    _,summary,acc,loss = sess.run([apply_grads,merged_summary_op,accuracy,loss_func],feed_dict={
+                    _, acc, loss, pre, rec, summary = sess.run(
+                        [apply_grads, accuracy, loss_func, precision, recall, merged_summary_op], feed_dict={
                     feature:x,
                     rawlabel:y
                 })
                 else:
-                    _, summary, acc, loss = sess.run([jumper, merged_summary_op, accuracy, loss_func], feed_dict={
+                    _, acc, loss, pre, rec, summary = sess.run(
+                        [jumper, accuracy, loss_func, precision, recall, merged_summary_op], feed_dict={
                         feature: x,
                         rawlabel: y
                     })
                 SummaryWriter.add_summary(summary,epoch * trainbatch + i)
-                TrainAcc+=acc
+                TrainAcc += acc[0]
                 TrainLoss +=loss
-
+                trec += rec[0]
+                tpre += pre[0]
 
 
             valbatch = int(len(x_val)/BatchSize)
 
             ValAcc = 0.0
             ValLoss = 0.0
+            vpre = 0.0
+            vrec = 0.0
             for i in range(valbatch):
                 x,y = nextbatch(x_val,y_val,BatchSize,i,shuffle=False)
-                acc,loss = sess.run([accuracy,loss_func],feed_dict={
+                acc, loss, valpre, valrec = sess.run([accuracy, loss_func, precision, recall], feed_dict={
                     feature:x,
                     rawlabel:y
                 })
-                ValAcc+=acc
+                ValAcc += acc[0]
                 ValLoss+=loss
+                vpre += valpre[0]
+                vrec += valrec[0]
 
             TrainAcc /= trainbatch
             TrainLoss /= trainbatch
+            tpre /= trainbatch
+            trec /= trainbatch
             ValAcc/=valbatch
             ValLoss/=valbatch
+            vpre /= valbatch
+            vrec /= valbatch
 
+            tf1 = 2 * tpre * trec / (tpre + trec)
+
+            vf1 = 2 * vpre * vrec / (vpre + vrec)
 
             TrainAccSum = tf.Summary()
             TrainLossSum = tf.Summary()
             ValAccSum = tf.Summary()
             ValLossSum = tf.Summary()
 
+            tfs = tf.Summary()
+            vfs = tf.Summary()
+
             TrainAccSum.value.add(tag='log-by-epoch/Accuracy/Train', simple_value=TrainAcc)
             TrainLossSum.value.add(tag='log-by-epoch/Loss/Train', simple_value=TrainLoss)
             ValAccSum.value.add(tag='log-by-epoch/Accuracy/Validation',simple_value=ValAcc)
             ValLossSum.value.add(tag='log-by-epoch/Loss/Validation',simple_value=ValLoss)
+            tfs.value.add(tag='log-by-epoch/F1/Train', simple_value=tf1)
+            vfs.value.add(tag='log-by-batch/F1/Validation', simple_value=vf1)
 
             SummaryWriter.add_summary(TrainAccSum, epoch)
             SummaryWriter.add_summary(ValAccSum,epoch)
             SummaryWriter.add_summary(TrainLossSum, epoch)
             SummaryWriter.add_summary(ValLossSum,epoch)
+            SummaryWriter.add_summary(tfs, epoch)
+            SummaryWriter.add_summary(vfs, epoch)
 
             print('epoch %d finished at %s with \n    val-Accuracy: %.4f\n    val-Loss: %.4f' % (epoch, str(datetime.now())[11:19], ValAcc,ValLoss))
             epoch+=1
