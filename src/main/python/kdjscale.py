@@ -1,57 +1,30 @@
-from pyut import poolconn
-from sklearn import preprocessing
-from sklearn.decomposition import PCA
-import numpy as np
+import psycopg2
 
-'''
-thoughts:
-scale for each code?
-scale once for all?
-min-max or gauss?
-or follow the dist and write my own?
-'''
+con = psycopg2.connect(database='nova', user='nova', password='emeth')
 
+cur = con.cursor()
 
-def concat(d0, d1, d2, d3, d4):
-    dd0 = d1 - d0
-    dd1 = d2 - d1
-    dd2 = d3 - d2
-    dd3 = d4 - d3
-    return np.concatenate((d0, dd0, d1, dd1, d2, dd2, d3, dd3, d4), axis=0)
+codes27 = ['sz002054', 'sz002509', 'sz002304', 'sz300363', 'sz300172', 'sz300055', 'sh600195', 'sz002643']  # 27
+codes26 = ['sh600742', 'sh603369', 'sh600388']  # 26
+codes28 = ['sh600477', 'sh600211', 'sz300122']
+codes = codes27
+# codes.extend(codes27)
+# codes.extend(codes28)
+date = '2017-04-27'
 
+for code in codes:
+    cur.execute('SELECT date FROM raw WHERE date >%s ORDER BY date ASC LIMIT 1', (date,))
+    nextdate = cur.fetchone()[0]
+    nextdate = date
+    cur.execute('SELECT op FROM raw WHERE code = %s AND date=%s', (code, nextdate))
+    op = cur.fetchone()[0]
+    cur.execute('SELECT date,mx FROM raw WHERE code = %s AND date > %s AND mx >= %s ORDER BY date ASC',
+                (code, nextdate, op * 1.03))
+    cc = cur.fetchone()
 
-def kdjscale():
-    con, cur = poolconn()
-    con.autocommit = False
-    cur.execute('delete from kdj')
-    cur.execute('select ARRAY[k,d,j,k-d,k-j,d-j,macddif,macddea,macddif-macddea] from raw order by code asc,date asc')
-    # cur.execute('select ARRAY[k,d,j] from raw order by code asc,date asc')
-    kdjs = np.asarray(list(map(lambda x: x[0], cur.fetchall())))
-    # cur.execute("select code,date,case when kdjcross='金叉' then 1 when kdjcross = '死叉' then 0 else 0 end from raw order by code asc,date asc")
-    cur.execute(
-        "select code,date,case when kdjcross='金叉' and macdcross = '金叉' then 1 else 0 end from raw order by code asc,date asc")
-    idx = cur.fetchall()
-    MMS = preprocessing.MinMaxScaler()
-    SS = preprocessing.StandardScaler()
-    MMS.fit(kdjs)
-    MMS.fit
-    # SS.fit(kdjs)
-    kdjs = MMS.transform(kdjs)
+    if cc is not None:
+        s = code + ',' + date + ',' + nextdate + ',' + str(op) + ',' + str(cc[0]) + ',' + str(cc[1])
+    else:
+        s = code + ',' + date + ',' + nextdate + ',' + str(op) + ',' + 'NOT SELLED YET, NAN'
 
-    kdj = np.zeros(shape=(len(kdjs), len(kdjs[0]) * 9))
-
-    for i in range(len(kdjs) - 1, 4, -1):
-        kdj[i] = concat(kdjs[i - 4], kdjs[i - 3], kdjs[i - 2], kdjs[i - 1], kdjs[
-            i])  # np.concatenate((kdjs[i - 4], kdjs[i - 3], kdjs[i - 2], kdjs[i - 1], kdjs[i]), axis=0)
-
-    # PCA(copy=False).fit(kdj)
-
-    for i in range(5, len(kdjs) - 1):
-        code = idx[i][0]
-        date = idx[i][1]
-        cross = idx[i + 1][2]
-        cur.execute('insert into kdj(code,date,kdj,label) values(%s,%s,%s,%s)', (code, date, list(kdj[i]), cross))
-    cur.execute('insert into kdj(code,date,kdj) values(%s,%s,%s)',
-                (idx[len(kdjs) - 1][0], idx[len(kdjs) - 1][1], list(kdj[len(kdj) - 1])))  # newest, no label available
-    con.commit()
-    con.close()
+    print(s)

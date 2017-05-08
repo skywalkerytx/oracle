@@ -54,13 +54,13 @@ plt.plot(X,recall,'b')
 plt.show()
 
 latests = []
-GeneratePast = True
+GeneratePast = False
 
 if GeneratePast:
     latests = ['2017-04-26', '2017-04-27', '2017-04-28']
 else:
     cur.execute('SELECT DISTINCT date FROM raw ORDER BY date DESC LIMIT 1')
-    latest = [cur.fetchone()[0]]
+    latests = [cur.fetchone()[0]]
 
 for latest in latests:
     print(latest)
@@ -79,6 +79,7 @@ for latest in latests:
     """, (latest,))
     result = cur.fetchall()
     filename = 'data/result/' + latest + '.csv'
+    print('writing %s' % filename)
     f = open(filename, 'w')
     f.write('code,prob\n')
     Sorted = []
@@ -97,6 +98,7 @@ for latest in latests:
     for line in Sorted:
         code = line[1]
         prob = line[0]
+        print(code, prob)
         if prob <= 0.52:
             continue
         s = code + ',>' + str(prob)[0:6] + '\n'
